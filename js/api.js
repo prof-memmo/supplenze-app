@@ -87,6 +87,7 @@ const API = (() => {
           return Engine.getEvents(sp.get('year_id'));
       }
       if (path === '/events' && method === 'POST') return await Engine.addEvent(data);
+      if (path.startsWith('/events/') && method === 'PUT') return await Engine.updateEvent(path.split('/')[2], data);
       if (path.startsWith('/events/') && method === 'DELETE') return await Engine.deleteEvent(path.split('/')[2]);
 
       throw new Error(`Cloud API: Path not handled ${path}`);

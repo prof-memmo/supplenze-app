@@ -371,6 +371,9 @@ const Engine = (() => {
     },
     deleteEvent: async (id) => {
       await db.collection('school_events').doc(String(id)).delete();
+    },
+    updateEvent: async (id, event) => {
+      await db.collection('school_events').doc(String(id)).update(event);
     }
   };
 

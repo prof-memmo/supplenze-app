@@ -32,8 +32,8 @@ var EventsView = (() => {
       _classes = classes || [];
 
       // Filtriamo per mostrare solo eventi futuri (o tutti, visto che è un elenco)
-      // Per ora mostriamo tutto ordinato per data
-      const sortedEvents = (events || []).sort((a,b) => new Date(a.date) - new Date(b.date));
+      _currentEvents = events || [];
+      const sortedEvents = [..._currentEvents].sort((a,b) => new Date(a.date) - new Date(b.date));
 
       container.innerHTML = `
         <div class="page-header" style="margin-bottom: 24px;">
@@ -103,7 +103,10 @@ var EventsView = (() => {
         <div class="event-content" style="flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
           <div class="flex justify-between items-start">
             <h3 style="margin: 0; font-size: 18px; color: var(--text-primary); font-weight: 700;">${escHtml(e.title)}</h3>
-            ${canDelete ? `<button class="btn btn-ghost btn-sm" onclick="EventsView.deleteEvent('${e.id}')" style="color: var(--danger-text)">🗑️</button>` : ''}
+            <div class="flex gap-4">
+              ${canDelete ? `<button class="btn btn-ghost btn-sm" onclick="EventsView.openEventEdit('${e.id}')" title="Modifica">🖊️</button>` : ''}
+              ${canDelete ? `<button class="btn btn-ghost btn-sm" onclick="EventsView.deleteEvent('${e.id}')" style="color: var(--danger-text)" title="Elimina">🗑️</button>` : ''}
+            </div>
           </div>
           
           <div class="event-details" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 4px;">
@@ -121,7 +124,11 @@ var EventsView = (() => {
             </div>
           </div>
           
-          ${e.description ? `<div style="font-size: 13px; color: var(--text-secondary); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--bg-secondary);">${escHtml(e.description)}</div>` : ''}
+          ${e.description ? `
+            <div style="margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px; border-left: 4px solid var(--accent); position: relative;">
+               <span style="position: absolute; top: -10px; left: 10px; background: white; padding: 0 6px; font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; border: 1px solid var(--border); border-radius: 4px;">Note</span>
+               <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5;">${escHtml(e.description)}</div>
+            </div>` : ''}
           
           <div class="event-footer" style="margin-top: 12px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted);">
             <div class="user-avatar-mini" style="width: 18px; height: 18px; background: var(--accent); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700;">${creator.charAt(0)}</div>
@@ -132,56 +139,58 @@ var EventsView = (() => {
     `;
   }
 
-  async function openEventModal(container, state) {
+  let _currentEvents = []; // Cache locale per la modifica rápida
+  async function openEventModal(container, state, eventToEdit = null) {
+    const isEdit = !!eventToEdit;
     const ov = APP.modal({
-      title: '📅 Programma Nuovo Evento',
+      title: isEdit ? '🖊️ Modifica Evento' : '📅 Programma Nuovo Evento',
       size: 'modal-md',
       body: `
         <div class="form-group">
           <label>Titolo Evento *</label>
-          <input type="text" id="ev-m-title" placeholder="Es: Progetto Scacchi, Incontro Orientamento..." required/>
+          <input type="text" id="ev-m-title" value="${isEdit ? escHtml(eventToEdit.title) : ''}" placeholder="Es: Progetto Scacchi, Incontro Orientamento..." required/>
         </div>
         
         <div class="form-group">
           <label>Data *</label>
-          <input type="date" id="ev-m-date" value="${new Date().toISOString().slice(0,10)}" required/>
+          <input type="date" id="ev-m-date" value="${isEdit ? eventToEdit.date : new Date().toISOString().slice(0,10)}" required/>
         </div>
 
         <div class="grid grid-cols-2 gap-12">
           <div class="form-group">
             <label>Classi Coinvolte</label>
             <select id="ev-m-classes" multiple placeholder="Seleziona classi">
-              ${_classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+              ${_classes.map(c => `<option value="${c.id}" ${(isEdit && (eventToEdit.class_ids || []).includes(c.id)) ? 'selected' : ''}>${c.name}</option>`).join('')}
             </select>
           </div>
           <div class="form-group">
             <label>Docenti Coinvolti</label>
             <select id="ev-m-teachers" multiple placeholder="Seleziona docenti">
-              ${_teachers.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+              ${_teachers.map(t => `<option value="${t.id}" ${(isEdit && (eventToEdit.teacher_ids || []).includes(t.id)) ? 'selected' : ''}>${t.name}</option>`).join('')}
             </select>
           </div>
         </div>
 
         <div class="form-group">
           <label>Fascia Oraria / Ore (es: 2ª - 4ª ora, oppure 09:00 - 11:00)</label>
-          <input type="text" id="ev-m-time" placeholder="Inserisci orario..."/>
+          <input type="text" id="ev-m-time" value="${isEdit ? escHtml(eventToEdit.time_range || '') : ''}" placeholder="Inserisci orario..."/>
         </div>
 
         <div class="form-group">
-          <label>Descrizione (opzionale)</label>
-          <textarea id="ev-m-desc" rows="3" placeholder="Aggiungi dettagli dell'evento..."></textarea>
+          <label>Descrizione / Note (opzionale)</label>
+          <textarea id="ev-m-desc" rows="3" placeholder="Aggiungi dettagli dell'evento...">${isEdit ? escHtml(eventToEdit.description || '') : ''}</textarea>
         </div>
       `,
       footer: `
         <button class="btn btn-ghost" id="ev-m-cancel">Annulla</button>
-        <button class="btn btn-primary" id="ev-m-save">✅ Pubblica Evento</button>
+        <button class="btn btn-primary" id="ev-m-save">✅ ${isEdit ? 'Salva Modifiche' : 'Pubblica Evento'}</button>
       `
     });
 
     // Inizializza TomSelect
     setTimeout(() => {
-      new TomSelect(ov.querySelector('#ev-m-classes'), { plugins: ['remove_button'] });
-      new TomSelect(ov.querySelector('#ev-m-teachers'), { plugins: ['remove_button'] });
+      new TomSelect(ov.querySelector('#ev-m-classes'), { plugins: ['remove_button'], closeAfterSelect: false });
+      new TomSelect(ov.querySelector('#ev-m-teachers'), { plugins: ['remove_button'], closeAfterSelect: false });
     }, 50);
 
     ov.querySelector('#ev-m-cancel').onclick = () => ov.remove();
@@ -199,27 +208,40 @@ var EventsView = (() => {
       }
 
       const user = APP.getState().user;
-      
-      try {
-        await API.post('/events', {
-          title,
-          date,
-          class_ids: classIds,
-          teacher_ids: teacherIds,
-          time_range: timeRange,
-          description,
-          school_year_id: _yearId,
-          created_by: user?.username || 'unknown',
-          created_by_name: user?.teacher?.name || user?.username || 'Docente'
-        });
+      const eventData = {
+        title,
+        date,
+        class_ids: classIds,
+        teacher_ids: teacherIds,
+        time_range: timeRange,
+        description,
+        school_year_id: _yearId
+      };
 
-        APP.toast('Evento aggiunto con successo!', 'success');
+      try {
+        if (isEdit) {
+            await API.put(`/events/${eventToEdit.id}`, eventData);
+            APP.toast('Evento aggiornato!', 'success');
+        } else {
+            await API.post('/events', {
+              ...eventData,
+              created_by: user?.username || 'unknown',
+              created_by_name: user?.teacher?.name || user?.username || 'Docente'
+            });
+            APP.toast('Evento aggiunto!', 'success');
+        }
+
         ov.remove();
         render(container, state);
       } catch (err) {
         APP.toast('Errore: ' + err.message, 'error');
       }
     };
+  }
+
+  function openEventEdit(id) {
+    const event = _currentEvents.find(e => e.id == id);
+    if (event) openEventModal(document.getElementById('content-area'), APP.getState(), event);
   }
 
   async function deleteEvent(id) {
@@ -234,5 +256,5 @@ var EventsView = (() => {
     }
   }
 
-  return { render, deleteEvent };
+  return { render, deleteEvent, openEventEdit };
 })();
