@@ -273,6 +273,7 @@ const APP = (() => {
             <li><strong>Uscita Didattica</strong>: Indica le classi e i colleghi che ti accompagnano. Il sistema caricherà automaticamente la richiesta per tutti i membri del team.</li>
             <li><strong>Stampa</strong>: Una volta inviata, l'admin può generare il modulo ufficiale già compilato per la tua firma.</li>
             <li><strong>Revoca</strong>: Se hai commesso un errore, puoi annullare la tua richiesta cliccando sul tasto <strong>"Annulla"</strong> nella sezione "Le Mie Richieste" della tab Notifiche.</li>
+            <li><strong>📅 Eventi Scolastici</strong>: Nella nuova sezione puoi visualizzare e aggiungere eventi d'istituto (progetti, incontri, orari speciali) indicando classi e colleghi coinvolti.</li>
           </ul>
 
           <h4 style="color: var(--accent);">🗳️ Invio Disponibilità (Fase di Scelta)</h4>
@@ -341,6 +342,7 @@ const APP = (() => {
             <li><strong>Inserire Sostituzioni</strong>: Usa il tasto <strong>"+ Nuova Sostituzione"</strong>. È possibile selezionare **più docenti contemporaneamente** (es. assemblea sindacale).</li>
             <li><strong>Registro Operativo</strong>: Le colonne mostrano ora distintamente i docenti in compresenza nella classe e quelli in **compresenza in altre sezioni**.</li>
             <li><strong>Gestione Supplenti (A tempo det.)</strong>: Se un docente è assente per lungo periodo, usa lo strumento integrato nel modale <strong>"Aggiungi/Modifica Docente"</strong> (scheda "Gestione Supplenti") nell'Anagrafica. Qui puoi nominare un supplente che erederà l'orario del titolare, riceverà notifiche e avrà un suo saldo ore personale.</li>
+            <li><strong>Eventi Scolastici (Novità)</strong>: Dal menu laterale è possibile accedere alla bacheca degli eventi. Qui si possono coordinare progetti, uscite e incontri, specificando classi e docenti coinvolti per una migliore pianificazione scolastica.</li>
           </ul>
 
           <h4 style="color: var(--accent);">❌ Correzione ed Eliminazione</h4>
