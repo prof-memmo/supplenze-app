@@ -403,12 +403,12 @@ const APP = (() => {
     }
   }
 
+  let _authInitialized = false;
   async function checkAuth() {
     try {
-      // Modifica per Firebase: inizializzazione motore con sync in tempo reale
+      // Inizializzazione motore con sync in tempo reale
       await Engine.init((db) => {
         console.log("[APP] Dati sincronizzati dal Cloud.");
-        // Ricarichiamo la vista corrente se siamo già dentro l'app
         if (state.user) {
            navigate(state.currentView);
            loadYears();
@@ -417,6 +417,7 @@ const APP = (() => {
 
       // Ascolto stato autenticazione Firebase
       Engine.onAuth(async (firebaseUser) => {
+        _authInitialized = true;
         if (firebaseUser) {
            console.log("[APP] Utente autenticato via Firebase:", firebaseUser.email);
            try {
@@ -433,6 +434,15 @@ const APP = (() => {
            showLogin();
         }
       });
+
+      // Timeout di sicurezza: se dopo 5 secondi Firebase non ha risposto, mostriamo il login
+      setTimeout(() => {
+        if (!_authInitialized) {
+          console.warn("[APP] Auth timeout reached, forcing login view.");
+          showLogin();
+        }
+      }, 5000);
+
     } catch(e) {
       console.error("[APP] Errore critico inizializzazione:", e);
       showLogin();
