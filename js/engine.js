@@ -152,6 +152,8 @@ const Engine = (() => {
     },
 
     // ── AUTH (Misto locale/email per compatibilità) ──
+    getUser: () => auth.currentUser,
+    onAuth: (cb) => auth.onAuthStateChanged(cb),
     login: async (username, password) => {
         const user = _db.users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password_hash === password);
         if (!user) throw new Error('Credenziali non valide.');
