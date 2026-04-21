@@ -405,11 +405,21 @@ const APP = (() => {
     }
   }
 
+  function hideSplashScreen() {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+      splash.style.transition = 'opacity 0.5s ease';
+      splash.style.opacity = '0';
+      setTimeout(() => splash.remove(), 500);
+    }
+  }
+
   let _authInitialized = false;
   async function checkAuth() {
     try {
       // Inizializzazione motore con sync in tempo reale
-      await Engine.init((db) => {
+      // Engine.init ora restituisce una Promise che si risolve quando tutti i dati sono carichi
+      const syncReady = Engine.init((db) => {
         console.log("[APP] Dati sincronizzati dal Cloud.");
         if (state.user) {
            navigate(state.currentView);
@@ -419,6 +429,9 @@ const APP = (() => {
 
       // Ascolto stato autenticazione Firebase
       Engine.onAuth(async (firebaseUser) => {
+        // Aspettiamo che anche il database sia sincronizzato prima di decidere
+        await syncReady;
+
         _authInitialized = true;
         if (firebaseUser) {
            console.log("[APP] Utente autenticato via Firebase:", firebaseUser.email);
@@ -427,27 +440,32 @@ const APP = (() => {
               state.user = user;
               await loadYears();
               showApp();
+              hideSplashScreen();
            } catch(e) {
               console.error("[APP] Errore caricamento profilo:", e);
               showLogin();
+              hideSplashScreen();
            }
         } else {
            console.log("[APP] Nessun utente, mostro login.");
            showLogin();
+           hideSplashScreen();
         }
       });
 
-      // Timeout di sicurezza: se dopo 5 secondi Firebase non ha risposto, mostriamo il login
+      // Timeout di sicurezza: se dopo 8 secondi Firebase non ha risposto, mostriamo il login
       setTimeout(() => {
         if (!_authInitialized) {
           console.warn("[APP] Auth timeout reached, forcing login view.");
           showLogin();
+          hideSplashScreen();
         }
-      }, 5000);
+      }, 8000);
 
     } catch(e) {
       console.error("[APP] Errore critico inizializzazione:", e);
       showLogin();
+      hideSplashScreen();
     }
   }
 

@@ -44,6 +44,10 @@ const Engine = (() => {
       'school_events'
     ];
 
+    let _resolveReady;
+    const _readyPromise = new Promise(res => _resolveReady = res);
+    let syncedMap = {};
+
     try {
       const snapshot = await db.collection('system').doc('metadata').get();
       if (!snapshot.exists) {
@@ -56,10 +60,18 @@ const Engine = (() => {
         db.collection(col).onSnapshot(snap => {
           _db[col] = snap.docs.map(doc => {
             const data = doc.data();
-            // Convertiamo l'ID del documento in numero se possibile per retro-compatibilità
             const id = isNaN(doc.id) ? doc.id : Number(doc.id);
             return { ...data, id };
           });
+          
+          if (!syncedMap[col]) {
+            syncedMap[col] = true;
+            if (Object.keys(syncedMap).length === collections.length) {
+              console.log("[ENGINE] Tutti i moduli sincronizzati.");
+              _resolveReady();
+            }
+          }
+
           if (_onDataUpdate) _onDataUpdate(_db);
         }, err => console.error(`Errore Sync [${col}]:`, err));
       });
@@ -68,6 +80,7 @@ const Engine = (() => {
     } catch (err) {
       console.error("Errore Inizializzazione Firebase:", err);
     }
+    return _readyPromise;
   }
 
   async function _performMigration() {
