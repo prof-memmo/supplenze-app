@@ -29,6 +29,7 @@ const APP = (() => {
     teacher_self_service: 'La Mia Area Docente',
     admin_notifications: 'Richieste Docenti',
     import_export: 'Importa ed Esporta Dati',
+    events: 'Eventi Scolastici',
     login_preview: 'Schermata Login'
   };
   
@@ -38,6 +39,7 @@ const APP = (() => {
     { id: 'teachers', label: '👨‍🏫 Gestione Docenti', role: 'admin' },
     { id: 'schedule', label: '🕒 Orario Scolastico', role: 'admin' },
     { id: 'import_export', label: '📥 Importa ed Esporta Dati', role: 'admin' },
+    { id: 'events', label: '📅 Eventi Scolastici', role: 'all' },
     { id: 'teacher_self_service', label: '👤 Area Personale', role: 'teacher' }
   ];
   
@@ -56,6 +58,7 @@ const APP = (() => {
       teacher_self_service: typeof TeacherSelfServiceView !== 'undefined' ? TeacherSelfServiceView : { render: (c) => c.innerHTML = 'Errore caricamento Area Docente' },
       admin_notifications: typeof AdminNotificationsView !== 'undefined' ? AdminNotificationsView : { render: (c) => c.innerHTML = 'Errore caricamento Notifiche' },
       import_export: typeof ImportExportView !== 'undefined' ? ImportExportView : { render: (c) => c.innerHTML = 'Errore caricamento Importa ed Esporta Dati' },
+      events: typeof EventsView !== 'undefined' ? EventsView : { render: (c) => c.innerHTML = 'Errore caricamento Eventi Scolastici' },
       login_preview: { render: (c) => renderLoginPreview(c) }
     };
     return VIEWS;
@@ -402,12 +405,36 @@ const APP = (() => {
 
   async function checkAuth() {
     try {
-      const user = await API.get('/auth/me');
-      state.user = user;
-      await loadYears();
-      showApp();
+      // Modifica per Firebase: inizializzazione motore con sync in tempo reale
+      await Engine.init((db) => {
+        console.log("[APP] Dati sincronizzati dal Cloud.");
+        // Ricarichiamo la vista corrente se siamo già dentro l'app
+        if (state.user) {
+           navigate(state.currentView);
+           loadYears();
+        }
+      });
+
+      // Ascolto stato autenticazione Firebase
+      Engine.onAuth(async (firebaseUser) => {
+        if (firebaseUser) {
+           console.log("[APP] Utente autenticato via Firebase:", firebaseUser.email);
+           try {
+              const user = await API.get('/auth/me');
+              state.user = user;
+              await loadYears();
+              showApp();
+           } catch(e) {
+              console.error("[APP] Errore caricamento profilo:", e);
+              showLogin();
+           }
+        } else {
+           console.log("[APP] Nessun utente, mostro login.");
+           showLogin();
+        }
+      });
     } catch(e) {
-      console.log('[APP] Non autenticato, mostro login.');
+      console.error("[APP] Errore critico inizializzazione:", e);
       showLogin();
     }
   }
@@ -595,17 +622,14 @@ async function handleLoginSubmit(e) {
 }
 
 window.handleGoogleSignIn = async (response) => {
+  const errEl = document.getElementById('login-error');
   try {
-    const base64Url = response.credential.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(window.atob(base64));
-    const res = await API.post('/auth/login-google', { email: payload.email, name: payload.name });
+    if (errEl) { errEl.style.display='flex'; errEl.textContent = 'Autenticazione Google in corso...'; }
+    const res = await Engine.loginWithGoogle();
     APP.getState().user = res.user;
     API.setToken(res.token);
-    await APP.loadYears();
-    APP.showApp();
+    // showApp verrà chiamato automaticamente da onAuth
   } catch(e) {
-    const errEl = document.getElementById('login-error');
     if (errEl) { errEl.style.display='flex'; errEl.textContent = e.message; }
   }
 };

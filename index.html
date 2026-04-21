@@ -13,6 +13,12 @@
   <link rel="icon" type="image/png" sizes="192x192" href="https://prof-memmo.github.io/supplenze-app/favicon.png">
   <link rel="manifest" href="https://prof-memmo.github.io/supplenze-app/manifest.json">
   <link rel="stylesheet" href="css/style.css?v=1.3">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.2/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.default.min.css" rel="stylesheet">
@@ -44,20 +50,10 @@
       <div style="font-size:11px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.05em; margin-bottom:10px; text-align:center;">Accesso Istituzionale</div>
       <!-- Google button container (One single, clean button) -->
       <div style="display:flex; justify-content:center;">
-        <div id="g_id_onload"
-             data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
-             data-callback="handleGoogleSignIn"
-             data-auto_prompt="false">
-        </div>
-        <div class="g_id_signin"
-             data-type="standard"
-             data-size="large"
-             data-theme="filled_blue"
-             data-text="continue_with"
-             data-shape="rectangular"
-             data-logo_alignment="left"
-             data-width="320">
-        </div>
+        <button class="btn btn-secondary btn-lg" style="width:320px; text-transform:none; font-weight:500; display:flex; align-items:center; justify-content:center; gap:12px; border:1px solid #dadce0; background:white; color:#3c4043;" onclick="handleGoogleSignIn()">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18" alt="Google">
+          <span>Accedi con account istituzionale</span>
+        </button>
       </div>
     </div>
 
@@ -150,6 +146,9 @@
       <div class="nav-section-label" id="nav-label-principal">Principale</div>
       <div class="nav-item" data-view="operational_registry">
         <span class="nav-icon">📋</span> Registro Operativo
+      </div>
+      <div class="nav-item" data-view="events">
+        <span class="nav-icon">📅</span> Eventi Scolastici
       </div>
 
       <div class="nav-section-label" id="admin-section-label" style="margin-top:8px">Gestione</div>
@@ -257,23 +256,12 @@
 <script src="js/reports.js?v=1.3"></script>
 <script src="js/settings.js?v=1.3"></script>
 <script src="js/import_export.js?v=1.4"></script>
+<script src="js/events.js?v=1.3"></script>
 <script src="js/app.js?v=1.3"></script>
 <script>
 // Google Sign-In fallback trigger
 function triggerGoogleSignIn() {
-  if (typeof google !== 'undefined' && google.accounts) {
-    google.accounts.id.prompt();
-  } else {
-    // Demo mode: simulate Google login with email input
-    const email = prompt('Inserisci la tua email istituzionale Gmail:');
-    if (email && email.includes('@')) {
-      if (window.handleGoogleSignIn) {
-        // Create a fake credential for demo
-        const fakePayload = btoa(JSON.stringify({})) + '.' + btoa(JSON.stringify({ email, name: email.split('@')[0], sub: '12345' })) + '.sig';
-        window.handleGoogleSignIn({ credential: fakePayload });
-      }
-    }
-  }
+  handleGoogleSignIn();
 }
 </script>
 </body>
