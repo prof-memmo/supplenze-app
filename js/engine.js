@@ -351,6 +351,9 @@ const Engine = (() => {
       return { slots, absences: absToday };
     },
 
+    // ── ASSEGNAZIONI LUNGO TERMINE ──
+    getLongTermAssignments: () => _db.long_term_assignments,
+
     // ── EVENTI SCOLASTICI ──
     getEvents: (yearId) => {
       const yid = Number(yearId);

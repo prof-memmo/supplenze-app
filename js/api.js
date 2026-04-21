@@ -78,6 +78,9 @@ const API = (() => {
       if (path === '/substitutions/assign' && method === 'POST') return await Engine.assignSubstitution(data);
       if (path.startsWith('/substitutions/') && method === 'DELETE') return await Engine.deleteSubstitution(path.split('/')[2]);
       
+      // --- LONG TERM ASSIGNMENTS ---
+      if (path === '/long-term-assignments' && method === 'GET') return Engine.getLongTermAssignments();
+      
       // --- EVENTS ---
       if (path.startsWith('/events') && method === 'GET') {
           const sp = new URLSearchParams(path.split('?')[1]);
