@@ -97,14 +97,14 @@ var EventsView = (() => {
     const canDelete = APP.isAdmin() || (APP.getState().user?.username === e.created_by);
 
     return `
-      <div class="event-card" style="display: flex; background: white; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-        <div class="event-date-box" style="width: 80px; background: var(--bg-secondary); display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid var(--border); padding: 12px;">
+      <div class="event-card" style="display: flex; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; box-shadow: var(--shadow);">
+        <div class="event-date-box" style="width: 80px; background: var(--bg-primary); display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid var(--border); padding: 12px;">
           <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">${weekday}</div>
           <div style="font-size: 28px; font-weight: 800; color: var(--accent); line-height: 1;">${day}</div>
           <div style="font-size: 12px; font-weight: 700; color: var(--text-primary);">${month}</div>
         </div>
         
-        <div class="event-content" style="flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+        <div class="event-content" style="flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
           <div class="flex justify-between items-start">
             <h3 style="margin: 0; font-size: 18px; color: var(--text-primary); font-weight: 700;">${escHtml(e.title)}</h3>
             <div class="flex gap-4">
@@ -113,28 +113,28 @@ var EventsView = (() => {
             </div>
           </div>
           
-          <div class="event-details" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 4px;">
+          <div class="event-details" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 4px;">
             <div class="detail-item">
-              <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; display: block;">🏢 Classi</span>
+              <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">🏢 Classi</span>
               <span style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${escHtml(classNames || 'Tutte')}</span>
             </div>
             <div class="detail-item">
-              <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; display: block;">👨‍🏫 Docenti</span>
+              <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">👨‍🏫 Docenti</span>
               <span style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${escHtml(teacherNames || '—')}</span>
             </div>
             <div class="detail-item">
-              <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; display: block;">🕒 Orario</span>
+              <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">🕒 Orario</span>
               <span style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${escHtml(e.time_range || '—')}</span>
             </div>
           </div>
           
           ${e.description ? `
-            <div style="margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px; border-left: 4px solid var(--accent); position: relative;">
-               <span style="position: absolute; top: -10px; left: 10px; background: white; padding: 0 6px; font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; border: 1px solid var(--border); border-radius: 4px;">Note</span>
+            <div style="margin-top: 8px; padding: 12px; background: var(--bg-primary); border-radius: 8px; border-left: 4px solid var(--accent); position: relative;">
+               <span style="position: absolute; top: -10px; left: 10px; background: var(--bg-secondary); padding: 0 6px; font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; border: 1px solid var(--border); border-radius: 4px;">Note</span>
                <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5; white-space: pre-wrap;">${escHtml(e.description)}</div>
             </div>` : ''}
           
-          <div class="event-footer" style="margin-top: 12px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted);">
+          <div class="event-footer" style="margin-top: 4px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted);">
             <div class="user-avatar-mini" style="width: 18px; height: 18px; background: var(--accent); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700;">${creator.charAt(0)}</div>
             <span>Aggiunto da <strong>${escHtml(creator)}</strong></span>
           </div>
