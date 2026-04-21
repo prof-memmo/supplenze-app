@@ -220,30 +220,31 @@ var OperationalRegistryView = (() => {
 
             html += `
               <tr class="${slot ? 'reg-row-absence' : 'reg-row-empty'} ${isFirstOfBlock ? 'reg-row-start-block' : ''} ${(hourLabel % 2 !== 0) ? 'hour-band-odd' : 'hour-band-even'}">
-                <td style="border-right: 2px solid var(--border-thick); text-align:center; vertical-align:middle;">${hourBadgeHtml}</td>
+                <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick); text-align:center; vertical-align:middle;">${hourBadgeHtml}</td>
                 ${slot ? `
-                <td style="border-right: 4px solid var(--accent)">
+                <td style="border-right: 4px solid var(--accent); border-bottom: 2px solid var(--border-thick);">
                   <div class="flex items-center justify-between gap-8">
                      <span style="font-weight:700; font-size:13px;">${escHtml(slot.absent_teacher_name)}</span>
                      ${!isReadOnly ? `<button class="btn btn-ghost btn-sm text-danger" style="font-size:14px; padding:0; font-weight:bold;" title="Elimina riga" 
                        onclick="OperationalRegistryView.deleteEntry('${slot.type}', '${slot.absence_record_id || ''}', ${slot.absent_teacher_id}, ${slot.hour}, ${slot.class_id})">✕</button>` : ''}
                   </div>
                 </td>
-                  <td><strong>${escHtml(slot.class_name)}</strong></td>
-                  <td style="border-right: 2px solid var(--border-thick)">${renderSubCell(slot, existing, 'compresenza', isReadOnly, daily.absences, activeLT)}</td>
-                  <td style="border-right: 2px solid var(--border-thick)">${renderSubCell(slot, existing, 'compresenza_altre', isReadOnly, daily.absences, activeLT)}</td>
-                  <td style="border-right: 2px solid var(--border-thick)">${renderSubCell(slot, existing, 'disposizione', isReadOnly, daily.absences, activeLT)}</td>
-                  <td style="border-right: 2px solid var(--border-thick)">${renderSubCell(slot, existing, 'eccedente', isReadOnly, daily.absences, activeLT)}</td>
-                  <td style="border-right: 2px solid var(--border-thick)">${renderSubCell(slot, existing, 'oltre5ore', isReadOnly, daily.absences, activeLT)}</td>
-                  <td>${renderAccepted(existing)}</td>
+                  <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick);">${escHtml(slot.class_name)}</td>
+                  <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick);">${renderSubCell(slot, existing, 'compresenza', isReadOnly, daily.absences, activeLT)}</td>
+                  <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick);">${renderSubCell(slot, existing, 'compresenza_altre', isReadOnly, daily.absences, activeLT)}</td>
+                  <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick);">${renderSubCell(slot, existing, 'disposizione', isReadOnly, daily.absences, activeLT)}</td>
+                  <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick);">${renderSubCell(slot, existing, 'eccedente', isReadOnly, daily.absences, activeLT)}</td>
+                  <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick);">${renderSubCell(slot, existing, 'oltre5ore', isReadOnly, daily.absences, activeLT)}</td>
+                  <td style="border-bottom: 2px solid var(--border-thick); text-align:center;">${renderAccepted(existing)}</td>
                 ` : `
-                  <td style="border-right: 2px solid var(--border-thick)"></td>
-                  <td style="border-right: 2px solid var(--border-thick)"></td>
-                  <td style="border-right: 2px solid var(--border-thick)"></td>
-                  <td style="border-right: 2px solid var(--border-thick)"></td>
-                  <td style="border-right: 2px solid var(--border-thick)"></td>
-                  <td style="border-right: 2px solid var(--border-thick)"></td>
-                  <td></td>
+                  <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick);"></td>
+                  <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick);"></td>
+                  <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick);"></td>
+                  <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick);"></td>
+                  <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick);"></td>
+                  <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick);"></td>
+                  <td style="border-right: 2px solid var(--border-thick); border-bottom: 2px solid var(--border-thick);"></td>
+                  <td style="border-bottom: 2px solid var(--border-thick);"></td>
                 `}
               </tr>
             `;
