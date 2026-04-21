@@ -409,47 +409,73 @@ const APP = (() => {
   let _authInitialized = false;
   async function checkAuth() {
     try {
-      // 1. Avviamo la sincronizzazione dati
-      Engine.init((db) => {
-        console.log("[APP] Database Cloud sincronizzato.");
-        if (state.user) {
-           navigate(state.currentView);
-           loadYears();
+      // 1. Avviamo la sincronizzazione dati (necessaria per avere i profili utente)
+      Engine.init(async (db) => {
+        console.log("[APP] Database Cloud sincronizzato. Verifica sessione...");
+        
+        // Se non abbiamo ancora inizializzato l'auth, proviamo ora
+        if (!_authInitialized) {
+          try {
+            const user = await API.get('/auth/me');
+            console.log("[APP] Sessione ripristinata:", user.username || user.email);
+            state.user = user;
+            _authInitialized = true;
+            
+            await loadYears();
+            showApp();
+            
+            const targetView = getHash() || localStorage.getItem('sg_current_view') || 'dashboard';
+            navigate(targetView);
+          } catch(e) {
+            // Se fallisce l'auth/me, aspettiamo comunque onAuth per sicurezza (Google Login)
+            // o mostriamo il login se siamo sicuri
+            console.log("[APP] Nessun utente rilevato via token.");
+          }
+        } else if (state.user) {
+          // Se siamo già loggati (es. via onAuth), aggiorniamo i dati
+          navigate(state.currentView);
+          loadYears();
         }
       });
 
-      // 2. Ascoltiamo il segnale di autenticazione Firebase (si attiva al caricamento e ad ogni cambio stato)
+      // 2. Ascoltiamo il segnale di autenticazione Firebase
       Engine.onAuth(async (firebaseUser) => {
-        _authInitialized = true;
         if (firebaseUser) {
-           console.log("[APP] Sessione Cloud confermata:", firebaseUser.email);
+           console.log("[APP] Firebase User rilevato:", firebaseUser.email);
+           _authInitialized = true;
            try {
-              // Recuperiamo il profilo completo dal DB
               const user = await API.get('/auth/me');
               state.user = user;
-              
-              // Carichiamo anni e mostriamo l'app
               await loadYears();
               showApp();
-              
-              // Ripristiniamo la vista corretta (da URL o memoria)
               const targetView = getHash() || localStorage.getItem('sg_current_view') || 'dashboard';
               navigate(targetView);
            } catch(e) {
-              console.error("[APP] Errore caricamento profilo dopo login:", e);
               showLogin();
            }
         } else {
-           console.log("[APP] Nessuna sessione attiva, mostro login.");
-           showLogin();
+           // Se Firebase dice che non c'è nessuno, verifichiamo se abbiamo un token manuale
+           const token = API.getToken();
+           if (!token) {
+              console.log("[APP] Nessuna sessione (Firebase o Manuale).");
+              _authInitialized = true;
+              showLogin();
+           } else if (token.startsWith('cloud-') && !_authInitialized) {
+              // Abbiamo un token manuale, ma Engine.init potrebbe non aver ancora finito.
+              // finalize verrà gestito nel callback di Engine.init
+              console.log("[APP] In attesa di sincronizzazione per sessione manuale...");
+           }
         }
       });
 
-      // 3. Timeout di sicurezza per evitare caricamento infinito
+      // 3. Timeout di sicurezza
       setTimeout(() => {
         if (!_authInitialized) {
-          console.warn("[APP] Timeout connessione Cloud superato.");
-          showLogin();
+          const token = API.getToken();
+          if (!token) {
+            console.warn("[APP] Timeout connessione. Mostro login.");
+            showLogin();
+          }
         }
       }, 6000);
 
@@ -596,6 +622,7 @@ const APP = (() => {
     API.setToken(null);
     localStorage.removeItem('sg_user');
     state.user = null;
+    Engine.logout();
     window.location.reload(); 
   }
 

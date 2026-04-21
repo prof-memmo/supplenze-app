@@ -23,6 +23,18 @@ const API = (() => {
       if (path === '/auth/login-google') return await Engine.loginWithGoogle();
       
       if (path === '/auth/me') {
+        const token = getToken();
+        // 1. Check for manual "cloud-" token
+        if (token && token.startsWith('cloud-')) {
+          const userId = token.replace('cloud-', '');
+          const dbUser = Engine.getDb().users.find(u => String(u.id) === String(userId));
+          if (dbUser) {
+            const teacher = dbUser.teacher_id ? Engine.getDb().teachers.find(t => t.id === dbUser.teacher_id) : null;
+            return { ...dbUser, teacher };
+          }
+        }
+
+        // 2. Check for Firebase User
         const user = await new Promise(resolve => {
            const unsubscribe = Engine.onAuth(u => {
              unsubscribe();
@@ -30,9 +42,9 @@ const API = (() => {
            });
         });
         if (user) {
-          // Ricerca il profilo utente nel DB per i metadati (ruolo, teacher_id)
           const dbUser = Engine.getDb().users.find(u => u.email === user.email);
-          return dbUser || { username: user.displayName, email: user.email, role: 'teacher' };
+          const teacher = dbUser && dbUser.teacher_id ? Engine.getDb().teachers.find(t => t.id === dbUser.teacher_id) : null;
+          return dbUser ? { ...dbUser, teacher } : { username: user.displayName, email: user.email, role: 'teacher' };
         }
         throw new Error('Not authenticated');
       }
