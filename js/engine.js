@@ -131,7 +131,11 @@ const Engine = (() => {
         detail: details || ''
       });
     },
-    getLogs: () => [..._db.logs].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)),
+    getLogs: () => [..._db.logs].map(l => ({
+      ...l,
+      username: l.username || l.user_id || 'system',
+      detail: l.detail || l.details || ''
+    })).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)),
 
     // ── ANNI SCOLASTICI ──
     getYears: () => _db.school_years,
