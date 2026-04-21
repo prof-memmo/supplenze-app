@@ -59,8 +59,8 @@ var OperationalRegistryView = (() => {
               <button class="btn btn-secondary btn-sm" id="reg-more-btn" style="width:34px; height:34px; padding:0; font-size:20px; border-radius:10px;">⋮</button>
               <div class="dropdown-menu" id="reg-more-menu" style="right:0; top:42px;">
                 <button class="dropdown-item" id="reg-print-btn-drop">🖨️ Stampa Registro</button>
-                <button class="dropdown-item" id="reg-share-btn-drop">📤 Esporta Schermata</button>
-                <button class="dropdown-item" id="reg-share-btn-drop">📤 Esporta Schermata</button>
+                <button class="dropdown-item" id="reg-share-btn-drop">🖼️ Esporta Immagine</button>
+                <button class="dropdown-item" id="reg-excel-btn-drop">📊 Esporta Excel</button>
                 <div class="dropdown-divider"></div>
                 <button class="dropdown-item text-danger" id="reg-del-absence-tool" style="color:var(--danger-text)">❌ Elimina Assenza...</button>
                 <button class="dropdown-item text-danger" id="reg-clear-all" style="color:var(--danger-text)">🗑️ Svuota Tutto</button>
@@ -117,6 +117,7 @@ var OperationalRegistryView = (() => {
 
       container.querySelector('#reg-add-absence')?.addEventListener('click', () => showAddAbsenceModal(state, () => loadAndRender(container, state)));
       container.querySelector('#reg-share-btn-drop')?.addEventListener('click', () => { shareRegistry(container); moreMenu.classList.remove('show'); });
+      container.querySelector('#reg-excel-btn-drop')?.addEventListener('click', () => { exportToExcel(container); moreMenu.classList.remove('show'); });
       container.querySelector('#reg-email-all')?.addEventListener('click', () => { emailAll(state); moreMenu.classList.remove('show'); });
       container.querySelector('#reg-email-all-out')?.addEventListener('click', () => { emailAll(state); });
       container.querySelector('#reg-del-absence-tool')?.addEventListener('click', () => { openDeleteAbsenceModal(state, () => loadAndRender(container, state)); moreMenu.classList.remove('show'); });
@@ -788,6 +789,20 @@ var OperationalRegistryView = (() => {
     }
   }
 
+  async function exportToExcel(container) {
+    const table = container.querySelector('.reg-columnar-table');
+    if (!table) return APP.toast('Nessuna tabella da esportare', 'warning');
+
+    try {
+      APP.toast('Generazione file Excel...', 'info');
+      const wb = XLSX.utils.table_to_book(table, { raw: true });
+      XLSX.writeFile(wb, `Registro_Operativo_${_currentDate}.xlsx`);
+      APP.toast('File Excel scaricato con successo!', 'success');
+    } catch (e) {
+      APP.toast('Errore esportazione Excel: ' + e.message, 'error');
+    }
+  }
+
   function setPageDate(date) {
     _currentDate = date;
   }
@@ -861,5 +876,5 @@ var OperationalRegistryView = (() => {
     }
   }
 
-  return { render, quickAbsence, shareRegistry, setPageDate, deleteEntry };
+  return { render, quickAbsence, shareRegistry, exportToExcel, setPageDate, deleteEntry };
 })();
