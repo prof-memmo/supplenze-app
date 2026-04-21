@@ -31,9 +31,13 @@ var EventsView = (() => {
       _teachers = teachers || [];
       _classes = classes || [];
 
-      // Filtriamo per mostrare solo eventi futuri (o tutti, visto che è un elenco)
+      // Filtriamo e ordiniamo per data (garantendo l'ordine cronologico)
       _currentEvents = events || [];
-      const sortedEvents = [..._currentEvents].sort((a,b) => new Date(a.date) - new Date(b.date));
+      const sortedEvents = [..._currentEvents].sort((a,b) => {
+        const da = new Date(a.date).getTime();
+        const db = new Date(b.date).getTime();
+        return da - db;
+      });
 
       container.innerHTML = `
         <div class="page-header" style="margin-bottom: 24px;">
@@ -85,9 +89,9 @@ var EventsView = (() => {
     const month = eventDate.toLocaleDateString('it-IT', { month: 'short' }).toUpperCase();
     const weekday = eventDate.toLocaleDateString('it-IT', { weekday: 'short' });
     
-    // Cerchiamo i nomi delle classi
-    const classNames = (e.class_ids || []).map(id => _classes.find(c => c.id == id)?.name || '?').join(', ');
-    const teacherNames = (e.teacher_ids || []).map(id => _teachers.find(t => t.id == id)?.name || '?').join(', ');
+    // Cerchiamo i nomi delle classi (usiamo == per gestire sia stringhe che numeri)
+    const classNames = (Array.isArray(e.class_ids) ? e.class_ids : []).map(id => _classes.find(c => c.id == id)?.name).filter(Boolean).join(', ');
+    const teacherNames = (Array.isArray(e.teacher_ids) ? e.teacher_ids : []).map(id => _teachers.find(t => t.id == id)?.name).filter(Boolean).join(', ');
 
     const creator = e.created_by_name || 'Docente';
     const canDelete = APP.isAdmin() || (APP.getState().user?.username === e.created_by);
@@ -127,7 +131,7 @@ var EventsView = (() => {
           ${e.description ? `
             <div style="margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px; border-left: 4px solid var(--accent); position: relative;">
                <span style="position: absolute; top: -10px; left: 10px; background: white; padding: 0 6px; font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; border: 1px solid var(--border); border-radius: 4px;">Note</span>
-               <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5;">${escHtml(e.description)}</div>
+               <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5; white-space: pre-wrap;">${escHtml(e.description)}</div>
             </div>` : ''}
           
           <div class="event-footer" style="margin-top: 12px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted);">
@@ -160,13 +164,13 @@ var EventsView = (() => {
           <div class="form-group">
             <label>Classi Coinvolte</label>
             <select id="ev-m-classes" multiple placeholder="Seleziona classi">
-              ${_classes.map(c => `<option value="${c.id}" ${(isEdit && (eventToEdit.class_ids || []).includes(c.id)) ? 'selected' : ''}>${c.name}</option>`).join('')}
+              ${_classes.map(c => `<option value="${c.id}" ${(isEdit && (eventToEdit.class_ids || []).some(id => id == c.id)) ? 'selected' : ''}>${c.name}</option>`).join('')}
             </select>
           </div>
           <div class="form-group">
             <label>Docenti Coinvolti</label>
             <select id="ev-m-teachers" multiple placeholder="Seleziona docenti">
-              ${_teachers.map(t => `<option value="${t.id}" ${(isEdit && (eventToEdit.teacher_ids || []).includes(t.id)) ? 'selected' : ''}>${t.name}</option>`).join('')}
+              ${_teachers.map(t => `<option value="${t.id}" ${(isEdit && (eventToEdit.teacher_ids || []).some(id => id == t.id)) ? 'selected' : ''}>${t.name}</option>`).join('')}
             </select>
           </div>
         </div>
