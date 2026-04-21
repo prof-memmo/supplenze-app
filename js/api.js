@@ -42,7 +42,15 @@ const API = (() => {
       if (path.startsWith('/settings/years/') && method === 'PUT') return await Engine.activateYear(path.split('/')[3]);
       if (path.startsWith('/settings/classes') && method === 'GET') return Engine.getClasses(new URLSearchParams(path.split('?')[1]).get('year_id'));
       if (path === '/settings/classes' && method === 'POST') return await Engine.addClass(data);
+      if (path === '/settings/classes/bulk' && method === 'POST') return await Engine.addBulkClasses(data.names, data.school_year_id);
       if (path.startsWith('/settings/classes/') && method === 'DELETE') return await Engine.deleteClass(path.split('/')[3]);
+      
+      // --- LOGS & USERS ---
+      if (path === '/settings/log') return Engine.getLogs();
+      if (path === '/settings/users') return Engine.getUsers();
+      if (path === '/settings/users' && method === 'POST') return await Engine.addUser(data);
+      if (path.startsWith('/settings/users/') && method === 'PUT') return await Engine.updateUser(path.split('/')[3], data);
+      if (path.startsWith('/settings/users/') && method === 'DELETE') return await Engine.deleteUser(path.split('/')[3]);
       
       // --- TEACHERS ---
       if (path.startsWith('/teachers') && method === 'GET') {

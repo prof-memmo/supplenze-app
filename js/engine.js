@@ -126,11 +126,12 @@ const Engine = (() => {
     logActivity: async (userId, action, details) => {
       await db.collection('logs').add({
         timestamp: new Date().toISOString(),
-        user_id: userId || 'system',
+        username: userId || 'system',
         action,
-        details
+        detail: details || ''
       });
     },
+    getLogs: () => [..._db.logs].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)),
 
     // ── ANNI SCOLASTICI ──
     getYears: () => _db.school_years,
@@ -193,6 +194,19 @@ const Engine = (() => {
 
     logout: () => auth.signOut(),
 
+    getUsers: () => _db.users,
+    addUser: async (u) => {
+       const user = { ...u, created_at: new Date().toISOString() };
+       const docRef = await db.collection('users').add(user);
+       return { ...user, id: docRef.id };
+    },
+    updateUser: async (id, u) => {
+       await db.collection('users').doc(String(id)).update(u);
+    },
+    deleteUser: async (id) => {
+       await db.collection('users').doc(String(id)).delete();
+    },
+
     // ── DOCENTI ──
     getTeachers: (yearId) => {
       const yid = Number(yearId || _db.school_years.find(y => y.is_active)?.id);
@@ -228,6 +242,14 @@ const Engine = (() => {
       const id = Date.now();
       const cls = { ...c, id, name: c.name.toUpperCase().trim() };
       await db.collection('classes').doc(String(id)).set(cls);
+    },
+    addBulkClasses: async (names, yearId) => {
+      const batch = db.batch();
+      names.forEach(n => {
+        const id = String(Date.now() + Math.random());
+        batch.set(db.collection('classes').doc(id), { name: n.toUpperCase().trim(), school_year_id: yearId, id });
+      });
+      await batch.commit();
     },
     deleteClass: async (id) => {
       await db.collection('classes').doc(String(id)).delete();

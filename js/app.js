@@ -409,52 +409,49 @@ const APP = (() => {
   let _authInitialized = false;
   async function checkAuth() {
     try {
-      // Inizializzazione motore con sync in tempo reale
+      // 1. Avviamo la sincronizzazione dati
       Engine.init((db) => {
-        console.log("[APP] Dati sincronizzati dal Cloud.");
+        console.log("[APP] Database Cloud sincronizzato.");
         if (state.user) {
            navigate(state.currentView);
            loadYears();
         }
       });
 
-      // Ascolto stato autenticazione Firebase
+      // 2. Ascoltiamo il segnale di autenticazione Firebase (si attiva al caricamento e ad ogni cambio stato)
       Engine.onAuth(async (firebaseUser) => {
         _authInitialized = true;
         if (firebaseUser) {
-           console.log("[APP] Utente autenticato via Firebase:", firebaseUser.email);
+           console.log("[APP] Sessione Cloud confermata:", firebaseUser.email);
            try {
+              // Recuperiamo il profilo completo dal DB
               const user = await API.get('/auth/me');
               state.user = user;
+              
+              // Carichiamo anni e mostriamo l'app
               await loadYears();
               showApp();
               
-              // Restore view from hash or localStorage
+              // Ripristiniamo la vista corretta (da URL o memoria)
               const targetView = getHash() || localStorage.getItem('sg_current_view') || 'dashboard';
-              console.log("[APP] Ripristino vista:", targetView);
               navigate(targetView);
            } catch(e) {
-              console.error("[APP] Errore caricamento profilo:", e);
+              console.error("[APP] Errore caricamento profilo dopo login:", e);
               showLogin();
            }
         } else {
-           // Piccola attesa per evitare flash se Firebase sta ancora decidendo
-           setTimeout(() => {
-              if (!_authInitialized || !Engine.getUser()) {
-                 console.log("[APP] Nessun utente, mostro login.");
-                 showLogin();
-              }
-           }, 500);
+           console.log("[APP] Nessuna sessione attiva, mostro login.");
+           showLogin();
         }
       });
 
-      // Timeout di sicurezza
+      // 3. Timeout di sicurezza per evitare caricamento infinito
       setTimeout(() => {
         if (!_authInitialized) {
-          console.warn("[APP] Auth timeout reached.");
+          console.warn("[APP] Timeout connessione Cloud superato.");
           showLogin();
         }
-      }, 5000);
+      }, 6000);
 
     } catch(e) {
       console.error("[APP] Errore critico inizializzazione:", e);
