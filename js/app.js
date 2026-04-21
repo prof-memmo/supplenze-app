@@ -391,6 +391,7 @@ const APP = (() => {
     }
 
     state.currentView = v;
+    localStorage.setItem('sg_current_view', v);
     
     // Sync hash
     if (getHash() !== v) {
@@ -427,6 +428,11 @@ const APP = (() => {
               state.user = user;
               await loadYears();
               showApp();
+              
+              // Restore view from hash or localStorage
+              const targetView = getHash() || localStorage.getItem('sg_current_view') || 'dashboard';
+              console.log("[APP] Ripristino vista:", targetView);
+              navigate(targetView);
            } catch(e) {
               console.error("[APP] Errore caricamento profilo:", e);
               showLogin();
@@ -493,7 +499,9 @@ const APP = (() => {
       if (sel) {
         // Rimuoviamo il vecchio listener se presente per evitare duplicati
         sel.onchange = (e) => {
-          state.yearId = e.target.value;
+          const nid = e.target.value;
+          state.yearId = nid;
+          localStorage.setItem('sg_year_id', nid);
           navigate(state.currentView);
         };
 
@@ -511,8 +519,10 @@ const APP = (() => {
           sel.innerHTML = options.join('');
           
           if (!state.yearId) {
-            const active = state.years.find(y => y.is_active) || state.years[state.years.length - 1];
+            const savedId = localStorage.getItem('sg_year_id');
+            const active = (savedId && state.years.find(y => y.id == savedId)) || state.years.find(y => y.is_active) || state.years[state.years.length - 1];
             state.yearId = active ? String(active.id) : null;
+            if (state.yearId) localStorage.setItem('sg_year_id', state.yearId);
           }
           
           sel.value = state.yearId || "";
@@ -749,10 +759,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.innerWidth <= 1024) sidebar?.classList.remove('open');
   });
 
-  // Gestore cambio anno (già gestito in loadYears con sel.onchange, ma manteniamo qui come fallback)
+  // Gestore cambio anno
   document.getElementById('year-selector')?.addEventListener('change', e => {
-    if (APP.getState().yearId !== e.target.value) {
-      APP.getState().yearId = e.target.value;
+    const newYearId = e.target.value;
+    if (APP.getState().yearId != newYearId) {
+      APP.getState().yearId = newYearId;
+      localStorage.setItem('sg_year_id', newYearId);
       APP.navigate(APP.getState().currentView);
     }
   });
