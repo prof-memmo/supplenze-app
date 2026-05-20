@@ -218,10 +218,6 @@ var DashboardView = (() => {
     };
   }
 
-      ov.remove(); render(container, state);
-    };
-  }
-
   async function openTripModal(container, state) {
     const yearId = state.yearId || (await API.get('/settings/years')).find(y=>y.is_active)?.id || 1;
     const [teachers, classes] = await Promise.all([
