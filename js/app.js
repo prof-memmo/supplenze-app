@@ -427,9 +427,13 @@ const APP = (() => {
             const targetView = getHash() || localStorage.getItem('sg_current_view') || 'dashboard';
             navigate(targetView);
           } catch(e) {
-            // Se fallisce l'auth/me, aspettiamo comunque onAuth per sicurezza (Google Login)
-            // o mostriamo il login se siamo sicuri
+            // Se fallisce l'auth/me, il token manuale non è più valido (es. DB resettato)
             console.log("[APP] Nessun utente rilevato via token.");
+            const token = API.getToken();
+            if (token && token.startsWith('cloud-')) {
+               API.setToken(null);
+               showLogin();
+            }
           }
         } else if (state.user) {
           // Se siamo già loggati (es. via onAuth), aggiorniamo i dati
@@ -471,11 +475,8 @@ const APP = (() => {
       // 3. Timeout di sicurezza
       setTimeout(() => {
         if (!_authInitialized) {
-          const token = API.getToken();
-          if (!token) {
-            console.warn("[APP] Timeout connessione. Mostro login.");
-            showLogin();
-          }
+          console.warn("[APP] Timeout connessione o deadlock auth. Mostro login.");
+          showLogin();
         }
       }, 6000);
 

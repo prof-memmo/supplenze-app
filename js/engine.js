@@ -52,18 +52,34 @@ const Engine = (() => {
       }
 
       // Sincronizzazione in tempo reale di tutte le collezioni
-      collections.forEach(col => {
-        db.collection(col).onSnapshot(snap => {
-          _db[col] = snap.docs.map(doc => {
-            const data = doc.data();
-            const id = isNaN(doc.id) ? doc.id : Number(doc.id);
-            return { ...data, id };
+      const initPromises = collections.map(col => {
+        return new Promise(resolve => {
+          let isFirst = true;
+          db.collection(col).onSnapshot(snap => {
+            _db[col] = snap.docs.map(doc => {
+              const data = doc.data();
+              const id = isNaN(doc.id) ? doc.id : Number(doc.id);
+              return { ...data, id };
+            });
+            if (isFirst) {
+              isFirst = false;
+              resolve();
+            } else if (_initialized && _onDataUpdate) {
+              _onDataUpdate(_db);
+            }
+          }, err => {
+            console.error(`Errore Sync [${col}]:`, err);
+            if (isFirst) {
+              isFirst = false;
+              resolve();
+            }
           });
-          if (_onDataUpdate) _onDataUpdate(_db);
-        }, err => console.error(`Errore Sync [${col}]:`, err));
+        });
       });
 
+      await Promise.all(initPromises);
       _initialized = true;
+      if (_onDataUpdate) _onDataUpdate(_db);
     } catch (err) {
       console.error("Errore Inizializzazione Firebase:", err);
     }
