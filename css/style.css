@@ -38,7 +38,7 @@
 }
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-overflow-scrolling: touch;}
-html,body{height:100%;height:100dvh;font-family:'Inter',-apple-system,sans-serif;background:var(--bg-primary);color:var(--text-primary);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+html,body{height:100%;height:100dvh;font-family:'Inter',-apple-system,sans-serif;background:var(--bg-primary);color:var(--text-primary);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;-webkit-user-select:none;user-select:none;}
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:var(--bg-secondary)}
 ::-webkit-scrollbar-thumb{background:var(--bg-hover);border-radius:3px}
@@ -573,6 +573,13 @@ tr:hover td { background: var(--bg-hover); }
   .toolbar-right .date-navigator { width: 100%; justify-content: space-between; }
   /* Dashboard specific mobile layout */
   .dashboard-main-grid { grid-template-columns: 1fr !important; }
+  /* Layout piatto per app-friendly view */
+  .card, .stat-card {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 10px 5px !important;
+  }
 }
 /* Master Schedule Table - High Fidelity Styling */
 .ov-master-wrapper {
