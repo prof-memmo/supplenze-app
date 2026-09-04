@@ -796,7 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const zoomSel = document.getElementById('ui-zoom-select');
   if (zoomSel) {
-    const saved = localStorage.getItem('ui_zoom') || '0.9';
+    const saved = localStorage.getItem('ui_zoom') || '1.0';
     zoomSel.value = saved;
     document.body.style.zoom = saved;
     zoomSel.onchange = (e) => {

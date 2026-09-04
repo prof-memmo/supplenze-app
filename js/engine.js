@@ -417,6 +417,47 @@ const Engine = (() => {
     },
     updateEvent: async (id, event) => {
       await db.collection('school_events').doc(String(id)).update(event);
+    },
+
+    // ── USCITE DIDATTICHE ──
+    getTrips: (date, yearId) => {
+      const yid = Number(yearId);
+      return _db.trips.filter(t => (!date || t.date === date) && (!yid || Number(t.school_year_id) === yid));
+    },
+    addTrip: async (trip) => {
+      const id = String(Date.now() + Math.random());
+      const newTrip = { ...trip, id, created_at: new Date().toISOString() };
+      await db.collection('trips').doc(id).set(newTrip);
+      return newTrip;
+    },
+    deleteTrip: async (id) => {
+      await db.collection('trips').doc(String(id)).delete();
+    },
+
+    // ── NOTIFICHE ──
+    getNotifications: (teacherId) => {
+      const tid = teacherId ? Number(teacherId) : null;
+      return (_db.notifications || []).filter(n => !tid || Number(n.teacher_id) === tid)
+        .sort((a,b) => (b.created_at || '').localeCompare(a.created_at || ''));
+    },
+    markNotificationRead: async (id) => {
+      await db.collection('notifications').doc(String(id)).update({ read: true });
+    },
+
+    // ── CAMBIO PASSWORD ──
+    changePassword: async (currentPw, newPw) => {
+      const currentUser = APP.getState().user;
+      if (!currentUser) throw new Error('Non autenticato');
+      const userDoc = _db.users.find(u => u.id === currentUser.id || u.username === currentUser.username);
+      if (!userDoc) throw new Error('Utente non trovato');
+      if (userDoc.password_hash && userDoc.password_hash !== currentPw && userDoc.password !== currentPw) {
+        throw new Error('Password attuale non corretta');
+      }
+      await db.collection('users').doc(String(userDoc.id)).update({
+        password_hash: newPw,
+        password: newPw
+      });
+      return { ok: true };
     }
   };
 

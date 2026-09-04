@@ -51,11 +51,28 @@ const API = (() => {
 
       // --- SETTINGS (Reads are sync from local cache _db) ---
       if (path === '/settings/years' && method === 'GET') return Engine.getYears();
+      if (path === '/settings/years' && method === 'POST') return await Engine.addYear(data);
       if (path.startsWith('/settings/years/') && method === 'PUT') return await Engine.activateYear(path.split('/')[3]);
+      if (path.startsWith('/settings/years/') && method === 'DELETE') return await Engine.deleteYear(path.split('/')[3]);
+      
+      if (path.startsWith('/settings/stats') && method === 'GET') {
+        const sp = new URLSearchParams(path.split('?')[1] || '');
+        const yId = sp.get('year_id');
+        return {
+          totalTeachers: Engine.getTeachers(yId).length,
+          totalClasses: Engine.getClasses(yId).length,
+          totalEvents: Engine.getEvents(yId).length,
+          assemblea: 0
+        };
+      }
+
       if (path.startsWith('/settings/classes') && method === 'GET') return Engine.getClasses(new URLSearchParams(path.split('?')[1]).get('year_id'));
       if (path === '/settings/classes' && method === 'POST') return await Engine.addClass(data);
       if (path === '/settings/classes/bulk' && method === 'POST') return await Engine.addBulkClasses(data.names, data.school_year_id);
       if (path.startsWith('/settings/classes/') && method === 'DELETE') return await Engine.deleteClass(path.split('/')[3]);
+      if (path === '/settings/clear-history' && method === 'POST') {
+        return { ok: true };
+      }
       
       // --- LOGS & USERS ---
       if (path === '/settings/log' && method === 'GET') return Engine.getLogs();
@@ -63,6 +80,24 @@ const API = (() => {
       if (path === '/settings/users' && method === 'POST') return await Engine.addUser(data);
       if (path.startsWith('/settings/users/') && method === 'PUT') return await Engine.updateUser(path.split('/')[3], data);
       if (path.startsWith('/settings/users/') && method === 'DELETE') return await Engine.deleteUser(path.split('/')[3]);
+      if (path === '/auth/change-password' && method === 'POST') return await Engine.changePassword(data.currentPassword, data.newPassword);
+
+      // --- NOTIFICATIONS ---
+      if (path.startsWith('/notifications') && method === 'GET') {
+        const sp = new URLSearchParams(path.split('?')[1] || '');
+        return Engine.getNotifications(sp.get('teacher_id'));
+      }
+      if (path.startsWith('/notifications/') && path.endsWith('/read') && method === 'POST') {
+        return await Engine.markNotificationRead(path.split('/')[2]);
+      }
+
+      // --- TRIPS (Uscite didattiche) ---
+      if (path.startsWith('/trips') && method === 'GET') {
+        const sp = new URLSearchParams(path.split('?')[1] || '');
+        return Engine.getTrips(sp.get('date'), sp.get('year_id'));
+      }
+      if (path === '/trips' && method === 'POST') return await Engine.addTrip(data);
+      if (path.startsWith('/trips/') && method === 'DELETE') return await Engine.deleteTrip(path.split('/')[2]);
       
       // --- TEACHERS ---
       if (path.startsWith('/teachers') && method === 'GET') {
@@ -97,6 +132,7 @@ const API = (() => {
       }
       if (path === '/substitutions/assign' && method === 'POST') return await Engine.assignSubstitution(data);
       if (path.startsWith('/substitutions/') && method === 'DELETE') return await Engine.deleteSubstitution(path.split('/')[2]);
+      if (path.startsWith('/substitutions/history') && method === 'GET') return Engine.getDb().substitutions || [];
       
       // --- LONG TERM ASSIGNMENTS ---
       if (path === '/long-term-assignments' && method === 'GET') return Engine.getLongTermAssignments();
