@@ -7,7 +7,7 @@ const APP = (() => {
     user: null,
     yearId: null,
     years: [],
-    currentView: 'dashboard',
+    currentView: 'operational_registry',
   };
 
   const ROLE_LABELS = {
@@ -20,7 +20,6 @@ const APP = (() => {
   
   const VIEW_TITLES = {
     operational_registry: 'Registro Operativo',
-    dashboard: 'Panoramica Giornaliera',
     substitutions: 'Sostituzioni',
     daily_overview: 'Prospetto Giornaliero',
     teachers: 'Gestione Docenti',
@@ -34,7 +33,6 @@ const APP = (() => {
   };
   
   const navItems = [
-    { id: 'dashboard', label: '🏠 Dashboard', role: 'admin' },
     { id: 'operational_registry', label: '📋 Registro Operativo', role: 'admin' },
     { id: 'teachers', label: '👨‍🏫 Gestione Docenti', role: 'admin' },
     { id: 'schedule', label: '🕒 Orario Scolastico', role: 'admin' },
@@ -49,7 +47,6 @@ const APP = (() => {
     // Queste variabili sono definite negli altri file .js caricati prima di app.js
     VIEWS = {
       operational_registry: typeof OperationalRegistryView !== 'undefined' ? OperationalRegistryView : { render: (c) => c.innerHTML = 'Errore caricamento Registro' },
-      dashboard: typeof DashboardView !== 'undefined' ? DashboardView : { render: (c) => c.innerHTML = 'Errore caricamento Dashboard' },
       substitutions: typeof SubstitutionsView !== 'undefined' ? SubstitutionsView : { render: (c) => c.innerHTML = 'Errore caricamento Sostituzioni' },
       daily_overview: typeof DailyOverviewView !== 'undefined' ? DailyOverviewView : { render: (c) => c.innerHTML = 'Errore caricamento Prospetto' },
       teachers: typeof TeachersView !== 'undefined' ? TeachersView : { render: (c) => c.innerHTML = 'Errore caricamento Docenti' },
@@ -361,13 +358,13 @@ const APP = (() => {
           <p>Quando un docente richiede ferie indicando i sostituti, l'amministratore vedrà i nomi dei colleghi nella scheda della richiesta. All'approvazione, il sistema notificherà automaticamente i sostituti indicati.</p>
           
           <h4 style="color: var(--accent);">3. Inserimento da Registro</h4>
-          <p>L'amministratore può inserire assenze per ferie, formazione o permessi direttamente dal Registro Operativo o dalla Dashboard. Nel modulo di inserimento, la <strong>motivazione è facoltativa</strong>.</p>
+          <p>L'amministratore può inserire assenze per ferie, formazione o permessi direttamente dal Registro Operativo o da Richieste Docenti. Nel modulo di inserimento, la <strong>motivazione è facoltativa</strong>.</p>
           
           <h4 style="color: var(--accent);">4. Uscite di Team</h4>
           <p>Registrando un'uscita (dal registro o approvando quella di un docente), puoi indicare più accompagnatori. Il sistema sincronizzerà i record di assenza per tutto il gruppo.</p>
 
           <h4 style="color: var(--accent);">5. Stampa Moduli</h4>
-          <p>Usa l'icona 🖨️ (presente in Dashboard e Gestione Assenze) per generare istantaneamente il modulo di assenza istituzionale con l'intestazione dell'Istituto, pronto per la firma.</p>
+          <p>Usa l'icona 🖨️ (presente in Registro Operativo e Gestione Assenze) per generare istantaneamente il modulo di assenza istituzionale con l'intestazione dell'Istituto, pronto per la firma.</p>
 
           <h4 style="color: var(--accent);">6. Traccia Log</h4>
           <p>Ogni operazione di modifica (assegnazione, eliminazione, approvazione) viene registrata nel log di sistema con data, ora e utente che ha effettuato l'azione.</p>
@@ -424,7 +421,7 @@ const APP = (() => {
             await loadYears();
             showApp();
             
-            const targetView = getHash() || localStorage.getItem('sg_current_view') || 'dashboard';
+            const targetView = getHash() || localStorage.getItem('sg_current_view') || 'operational_registry';
             navigate(targetView);
           } catch(e) {
             // Se fallisce l'auth/me, il token manuale non è più valido (es. DB resettato)
@@ -452,7 +449,7 @@ const APP = (() => {
               state.user = user;
               await loadYears();
               showApp();
-              const targetView = getHash() || localStorage.getItem('sg_current_view') || 'dashboard';
+              const targetView = getHash() || localStorage.getItem('sg_current_view') || 'operational_registry';
               navigate(targetView);
            } catch(e) {
               showLogin();
@@ -503,7 +500,7 @@ const APP = (() => {
     buildNav();
 
     // Initial routing based on hash
-    const initialView = getHash() || (isTeacher() ? 'teacher_self_service' : 'dashboard');
+    const initialView = getHash() || (isTeacher() ? 'teacher_self_service' : 'operational_registry');
     navigate(initialView);
 
     // Watch for hash changes (back/forward buttons)
