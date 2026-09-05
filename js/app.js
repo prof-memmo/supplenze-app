@@ -116,6 +116,7 @@ const APP = (() => {
       formazione: 'Formazione',
       concorsi_esami: 'Concorsi / Esami',
       matrimonio: 'Matrimonio',
+      lutto: 'Lutto',
       permessi_sindacali: 'Permesso Sindacale',
       assemblea: 'Assemblea'
     }[a.type] || 'Assenza';
@@ -299,10 +300,17 @@ const APP = (() => {
           <div class="badge badge-warning" style="margin-bottom:10px">⚠️ Promemoria Amministrativo</div>
           <p>La trasmissione del certificato medico telematico o del numero di protocollo PUC deve essere effettuata direttamente verso la Segreteria del Personale secondo le consuete modalità istituzionali.</p>
           
-          <h4 style="color: var(--accent);">🌴 Permessi Giornalieri e 6 Giorni di Ferie (Art. 15 c. 2)</h4>
-          <p>Il docente ha a disposizione <strong>3 giorni di permesso retribuito</strong> per motivi personali/familiari e può inoltre fruire dei <strong>6 giorni di ferie</strong> durante le lezioni alle stesse condizioni (autocertificazione), per un totale fino a <strong>9 giorni retribuiti/anno non soggetti a recupero</strong>.</p>
-          <div class="badge badge-info" style="margin-bottom:10px">Nota per il personale a tempo determinato</div>
-          <p>Il personale a tempo determinato (supplenti) può usufruire dei permessi e delle ferie maturate in proporzione al servizio prestato, secondo quanto previsto dal CCNL vigente.</p>
+          <h4 style="color: var(--accent);">🌴 Ferie e Permessi durante l'Anno Scolastico</h4>
+          <p><strong>1. Permessi Retribuiti per Motivi Personali (3 giorni):</strong><br>
+          Spettano sia ai docenti di ruolo sia ai docenti con contratto annuale o fino al 30 giugno (a domanda con semplice autocertificazione, senza obbligo di recupero e senza dover cercare colleghi per la sostituzione: la copertura è organizzata dalla scuola).</p>
+
+          <p><strong>2. Ferie durante le Lezioni (fino a 6 giorni):</strong><br>
+          &bull; <em>Ferie Ordinarie:</em> richiedibili indicando nella domanda i colleghi disponibili a sostituire a costo zero per la scuola.<br>
+          &bull; <em>Ferie per Motivi Personali/Familiari (Art. 15 c. 2):</em> fruibili con semplice autocertificazione, senza dover cercare sostituti (copertura a cura della scuola).<br>
+          ⚠️ <em>Nota importante:</em> in entrambi i casi, i giorni fruiti durante le lezioni vengono <strong>sottratti dal conto delle ferie annuali</strong> e dovranno essere <strong>indicati come giorni già fruiti (e quindi scalati) nella richiesta di ferie estive</strong> presentata a fine anno alla Segreteria.</p>
+
+          <div class="badge badge-info" style="margin-bottom:8px">Altri Permessi Contrattuali (Ruolo e Tempo Determinato)</div>
+          <p>I congedi per <strong>Matrimonio (15 gg)</strong>, <strong>Formazione (5 gg)</strong>, <strong>Lutto (3 gg per evento)</strong> e <strong>Assemblee sindacali (10 h)</strong> spettano a tutto il personale secondo quanto previsto dal CCNL vigente. Per le supplenze brevi e saltuarie, i permessi per motivi personali sono fruibili fino a 8 giorni ad anno scolastico non retribuiti.</p>
           
           <h4 style="color: var(--accent);">✍️ Firma Sostituzioni Assegnate</h4>
           <p>Tutte le sostituzioni assegnate o concordate devono essere confermate digitalmente tramite il pulsante "Firma" nella sezione "Sostituzioni Assegnate" dell'Area Docente.</p>

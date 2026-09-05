@@ -101,12 +101,18 @@ var TeacherSelfServiceView = (() => {
         }
       });
 
+      let luttoCount = 0;
+      teacherAbs.forEach(a => {
+        if ((a.type || '').toLowerCase() === 'lutto') luttoCount++;
+      });
+
       const s = {
         ferie: stats.ferie || 0,
         formazione: stats.formazione || 0,
         permessi_giornalieri: stats.permessi_giornalieri || 0,
         concorsi: stats.concorsi || 0,
         matrimonio: stats.matrimonio || 0,
+        lutto: stats.lutto || luttoCount || 0,
         sindacali: stats.permessi_sindacali || 0,
         assemblea: stats.assemblea || 0
       };
@@ -119,6 +125,7 @@ var TeacherSelfServiceView = (() => {
         <div class="badge badge-secondary" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">📚 Formazione: <strong>${s.formazione}/5</strong></div>
         <div class="badge badge-secondary" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">📝 Concorsi: <strong>${s.concorsi}/8</strong></div>
         <div class="badge badge-neutral" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">💍 Matrimonio: <strong>${s.matrimonio}/15</strong></div>
+        <div class="badge badge-neutral" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">🕊️ Lutto: <strong>${s.lutto} gg</strong> <span style="font-size:10px; opacity:0.8">(3gg/ev)</span></div>
         <div class="badge badge-neutral" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">📢 Sindacale: <strong>${s.sindacali}/12</strong></div>
         <div class="badge badge-ghost" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">👥 Assemblee: <strong>${s.assemblea}/10</strong></div>
       `;
@@ -208,6 +215,10 @@ var TeacherSelfServiceView = (() => {
               <input type="radio" name="ts-abs-tipo" id="ts-tipo-mat" value="matrimonio" style="width:15px;height:15px;">
               <div><div style="font-weight:700; font-size:11px;">💍 Matrimonio</div></div>
             </label>
+            <label id="ts-tipo-lut-lbl" style="display:flex; align-items:center; gap:8px; padding:10px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
+              <input type="radio" name="ts-abs-tipo" id="ts-tipo-lut" value="lutto" style="width:15px;height:15px;">
+              <div><div style="font-weight:700; font-size:11px;">🕊️ Lutto</div><div style="font-size:9px; color:var(--text-secondary);">3gg / evento</div></div>
+            </label>
             <label id="ts-tipo-sin-lbl" style="display:flex; align-items:center; gap:8px; padding:10px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
               <input type="radio" name="ts-abs-tipo" id="ts-tipo-sin" value="permessi_sindacali" style="width:15px;height:15px;">
               <div><div style="font-weight:700; font-size:11px;">📢 Permesso Sindacale</div></div>
@@ -268,6 +279,7 @@ var TeacherSelfServiceView = (() => {
     const tipoForEl = container.querySelector('#ts-tipo-for');
     const tipoConEl = container.querySelector('#ts-tipo-con');
     const tipoMatEl = container.querySelector('#ts-tipo-mat');
+    const tipoLutEl = container.querySelector('#ts-tipo-lut');
     const tipoSinEl = container.querySelector('#ts-tipo-sin');
 
     const updateTipoStyle = () => {
@@ -277,7 +289,7 @@ var TeacherSelfServiceView = (() => {
       const isUsc = tipoUscEl?.checked;
       const isFer = tipoFerEl?.checked;
       
-      const ids = ['ts-tipo-mal','ts-tipo-gen','ts-tipo-ora','ts-tipo-vis','ts-tipo-usc','ts-tipo-fer','ts-tipo-for','ts-tipo-con','ts-tipo-mat','ts-tipo-sin'];
+      const ids = ['ts-tipo-mal','ts-tipo-gen','ts-tipo-ora','ts-tipo-vis','ts-tipo-usc','ts-tipo-fer','ts-tipo-for','ts-tipo-con','ts-tipo-mat','ts-tipo-lut','ts-tipo-sin'];
       ids.forEach(id => {
         const el = container.querySelector('#' + id);
         const lbl = container.querySelector('#' + id + '-lbl');
@@ -295,7 +307,7 @@ var TeacherSelfServiceView = (() => {
       container.querySelector('#accompanists-wrapper').style.display = isUsc ? 'block' : 'none';
       container.querySelector('#subs-wrapper').style.display = isFer ? 'block' : 'none';
       
-      const hideReason = isMal || isFer || isUsc || tipoForEl?.checked || tipoConEl?.checked || tipoSinEl?.checked || tipoMatEl?.checked;
+      const hideReason = isMal || isFer || isUsc || tipoForEl?.checked || tipoConEl?.checked || tipoSinEl?.checked || tipoMatEl?.checked || tipoLutEl?.checked;
       container.querySelector('#reason-wrapper').style.display = hideReason ? 'none' : 'block';
     };
 

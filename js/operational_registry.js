@@ -450,6 +450,10 @@ var OperationalRegistryView = (() => {
           <input type="radio" name="abs-tipo" id="tipo-matrimonio" value="matrimonio" style="width:16px;height:16px;">
           <div><div style="font-weight:700; font-size:12px;">💍 Matrimonio</div></div>
         </label>
+        <label id="tipo-lutto-lbl" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
+          <input type="radio" name="abs-tipo" id="tipo-lutto" value="lutto" style="width:16px;height:16px;">
+          <div><div style="font-weight:700; font-size:12px;">🕊️ Lutto</div><div style="font-size:10px; color:var(--text-secondary);">3gg / evento</div></div>
+        </label>
         <label id="tipo-sindacali-lbl" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
           <input type="radio" name="abs-tipo" id="tipo-sindacali" value="permessi_sindacali" style="width:16px;height:16px;">
           <div><div style="font-weight:700; font-size:12px;">📢 Permesso Sindacale</div><div style="font-size:10px; color:var(--text-secondary);">fino a 12 giorni/anno</div></div>
@@ -521,6 +525,7 @@ var OperationalRegistryView = (() => {
     const tipoFormazione = ov.querySelector('#tipo-formazione');
     const tipoConcorsi = ov.querySelector('#tipo-concorsi');
     const tipoMatrimonio = ov.querySelector('#tipo-matrimonio');
+    const tipoLutto = ov.querySelector('#tipo-lutto');
     const tipoSindacali = ov.querySelector('#tipo-sindacali');
     const tipoAssemblea = ov.querySelector('#tipo-assemblea');
 
@@ -531,6 +536,7 @@ var OperationalRegistryView = (() => {
     const forLbl = ov.querySelector('#tipo-formazione-lbl');
     const conLbl = ov.querySelector('#tipo-concorsi-lbl');
     const matLbl = ov.querySelector('#tipo-matrimonio-lbl');
+    const lutLbl = ov.querySelector('#tipo-lutto-lbl');
     const sinLbl = ov.querySelector('#tipo-sindacali-lbl');
     const assLbl = ov.querySelector('#tipo-assemblea-lbl');
 
@@ -542,6 +548,7 @@ var OperationalRegistryView = (() => {
       const isFor = tipoFormazione.checked;
       const isCon = tipoConcorsi.checked;
       const isMat = tipoMatrimonio.checked;
+      const isLut = tipoLutto.checked;
       const isSin = tipoSindacali.checked;
       const isAss = tipoAssemblea.checked;
       
@@ -559,6 +566,8 @@ var OperationalRegistryView = (() => {
       conLbl.style.background  = isCon ? 'var(--accent-light)' : 'var(--bg-secondary)';
       matLbl.style.borderColor = isMat ? 'var(--accent)' : 'var(--border)';
       matLbl.style.background  = isMat ? 'var(--accent-light)' : 'var(--bg-secondary)';
+      lutLbl.style.borderColor = isLut ? 'var(--accent)' : 'var(--border)';
+      lutLbl.style.background  = isLut ? 'var(--accent-light)' : 'var(--bg-secondary)';
       sinLbl.style.borderColor = isSin ? 'var(--accent)' : 'var(--border)';
       sinLbl.style.background  = isSin ? 'var(--accent-light)' : 'var(--bg-secondary)';
       assLbl.style.borderColor = isAss ? 'var(--accent)' : 'var(--border)';
@@ -580,6 +589,7 @@ var OperationalRegistryView = (() => {
     tipoFormazione.onchange = updateTipo;
     tipoConcorsi.onchange = updateTipo;
     tipoMatrimonio.onchange = updateTipo;
+    tipoLutto.onchange = updateTipo;
     tipoSindacali.onchange = updateTipo;
     tipoAssemblea.onchange = updateTipo;
 
@@ -716,7 +726,7 @@ var OperationalRegistryView = (() => {
             date: dateStart,
             date_end: dateEnd !== dateStart ? dateEnd : null,
             hours: hours.length ? hours : null,
-            type: isFerie ? 'ferie' : (tipoFormazione.checked ? 'formazione' : (tipoConcorsi.checked ? 'concorsi_esami' : (tipoMatrimonio.checked ? 'matrimonio' : (tipoSindacali.checked ? 'permessi_sindacali' : (tipoAssemblea.checked ? 'assemblea' : (tipoOrario.checked ? 'permesso_orario' : 'assenza_giornaliera')))))),
+            type: isFerie ? 'ferie' : (tipoFormazione.checked ? 'formazione' : (tipoConcorsi.checked ? 'concorsi_esami' : (tipoMatrimonio.checked ? 'matrimonio' : (tipoLutto.checked ? 'lutto' : (tipoSindacali.checked ? 'permessi_sindacali' : (tipoAssemblea.checked ? 'assemblea' : (tipoOrario.checked ? 'permesso_orario' : 'assenza_giornaliera'))))))),
             reason,
             status: 'approved',
             created_by: APP.getState().user?.id

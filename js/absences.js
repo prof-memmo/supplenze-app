@@ -154,13 +154,14 @@ var AbsencesView = (() => {
             <option value="malattia">🤒 Malattia (Intera giornata)</option>
             <option value="assenza_giornaliera">🚫 Permessi Giornalieri (Max 3gg/anno)</option>
             <option value="permesso_orario">⏳ Permessi Brevi (Singole ore)</option>
-            <option value="visita_medica">🩺 Visita Medica (Max 3 esenti)</option>
+            <option value="visita_medica">🩺 Visita Medica (A ore - rec. 2 mesi)</option>
             <option value="ferie">🏝️ Ferie</option>
             <option value="formazione">📚 Formazione</option>
             <option value="permessi_sindacali">📢 Permessi Sindacali</option>
             <option value="assemblea">👥 Assemblea</option>
             <option value="concorsi_esami">📝 Concorsi / Esami</option>
             <option value="matrimonio">💍 Matrimonio</option>
+            <option value="lutto">🕊️ Permesso per Lutto (3gg per evento)</option>
           </select>
         </div>
         <div class="form-group"><label>Motivo</label><input type="text" id="ab-reason" placeholder="Dettagli aggiuntivi..."/></div>`,
