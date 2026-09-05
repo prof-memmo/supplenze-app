@@ -115,7 +115,7 @@ var TeacherSelfServiceView = (() => {
         <div class="badge badge-info" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">🏝️ Ferie: <strong>${s.ferie}/6</strong></div>
         <div class="badge badge-success" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">👥 Permessi Giornalieri: <strong>${s.permessi_giornalieri}/3</strong></div>
         <div class="badge badge-warning" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">⏳ Permessi Brevi: <strong>${shortPermitHours}/${weeklyH} h</strong></div>
-        <div class="badge badge-primary" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">🩺 Visite Mediche: <strong>${medVisitsCount}/3 req</strong> <span style="font-size:10px; opacity:0.8">(${medVisitsHours}h tot)</span></div>
+        <div class="badge badge-primary" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">🩺 Visite Mediche: <strong>${medVisitsCount} req</strong> <span style="font-size:10px; opacity:0.8">(${medVisitsHours}h tot)</span></div>
         <div class="badge badge-secondary" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">📚 Formazione: <strong>${s.formazione}/5</strong></div>
         <div class="badge badge-secondary" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">📝 Concorsi: <strong>${s.concorsi}/8</strong></div>
         <div class="badge badge-neutral" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">💍 Matrimonio: <strong>${s.matrimonio}/15</strong></div>
@@ -186,7 +186,7 @@ var TeacherSelfServiceView = (() => {
             </label>
             <label id="ts-tipo-vis-lbl" style="display:flex; align-items:center; gap:8px; padding:10px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
               <input type="radio" name="ts-abs-tipo" id="ts-tipo-vis" value="visita_medica" style="width:15px;height:15px;">
-              <div><div style="font-weight:700; font-size:11px;">🩺 Visita Medica</div><div style="font-size:9px; color:var(--text-secondary);">Max 3 esenti</div></div>
+              <div><div style="font-weight:700; font-size:11px;">🩺 Visita Medica</div><div style="font-size:9px; color:var(--text-secondary);">A ore (rec. 2 mesi)</div></div>
             </label>
             <label id="ts-tipo-usc-lbl" style="display:flex; align-items:center; gap:8px; padding:10px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
               <input type="radio" name="ts-abs-tipo" id="ts-tipo-usc" value="uscita_didattica" style="width:15px;height:15px;">
@@ -194,7 +194,7 @@ var TeacherSelfServiceView = (() => {
             </label>
             <label id="ts-tipo-fer-lbl" style="display:flex; align-items:center; gap:8px; padding:10px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
               <input type="radio" name="ts-abs-tipo" id="ts-tipo-fer" value="ferie" style="width:15px;height:15px;">
-              <div><div style="font-weight:700; font-size:11px;">🏝️ Ferie</div><div style="font-size:9px; color:var(--text-secondary);">Matrici sugg.</div></div>
+              <div><div style="font-weight:700; font-size:11px;">🏝️ Ferie / Permessi</div><div style="font-size:9px; color:var(--text-secondary);">Max 6gg (Art.15 c.2)</div></div>
             </label>
             <label id="ts-tipo-for-lbl" style="display:flex; align-items:center; gap:8px; padding:10px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
               <input type="radio" name="ts-abs-tipo" id="ts-tipo-for" value="formazione" style="width:15px;height:15px;">
@@ -219,7 +219,7 @@ var TeacherSelfServiceView = (() => {
           </div>
 
           <div id="ts-visita-disclaimer" class="alert alert-info" style="display:none; font-size:12px; margin-bottom:16px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:12px;">
-            🩺 <strong>Visite Mediche:</strong> Le prime 3 richieste dell'anno scolastico sono esenti dal recupero. Dalla 4ª richiesta le ore generano debito per supplenze (con recupero entro 2 mesi).
+            🩺 <strong>Visite Mediche a Ore (Art. 16 CCNL):</strong> Le ore di visita medica sono soggette a recupero tramite supplenze entro 2 mesi lavorativi. Se la visita è a giornata intera, seleziona <em>"Malattia"</em> o <em>"Permessi Giornalieri"</em>.
           </div>
 
           <div class="form-group">
@@ -696,8 +696,7 @@ async function renderOre(container, state) {
     
     let shortPermitHours = 0;
     let medVisitsCount = 0;
-    let medExemptHours = 0;
-    let medDebtHours = 0;
+    let medVisitsHours = 0;
     const now = new Date();
 
     // Dettaglio assenze
@@ -748,32 +747,19 @@ async function renderOre(container, state) {
         });
       } else if (type === 'visita_medica' || type === 'medical_visit' || type === 'visita') {
         medVisitsCount++;
-        if (medVisitsCount <= 3) {
-          medExemptHours += hoursCount;
-          registryItems.push({
-            date: fmtDate(a.date),
-            title: `🩺 Visita Medica #${medVisitsCount} (${hoursCount}h)`,
-            hours: hoursCount,
-            deadline: 'Nessuna (Franchigia esente)',
-            isExpired: false,
-            isExempt: true,
-            type: 'med_exempt'
-          });
-        } else {
-          medDebtHours += hoursCount;
-          const dAssenza = new Date(a.date);
-          const deadline = new Date(dAssenza);
-          deadline.setDate(deadline.getDate() + 60);
-          const isExpired = deadline < now;
-          registryItems.push({
-            date: fmtDate(a.date),
-            title: `🩺 Visita Medica #${medVisitsCount} (${hoursCount}h - oltre quota)`,
-            hours: hoursCount,
-            deadline: `${fmtDate(deadline.toISOString().slice(0,10))} (2 mesi)`,
-            isExpired: isExpired,
-            type: 'med_debt'
-          });
-        }
+        medVisitsHours += hoursCount;
+        const dAssenza = new Date(a.date);
+        const deadline = new Date(dAssenza);
+        deadline.setDate(deadline.getDate() + 60);
+        const isExpired = deadline < now;
+        registryItems.push({
+          date: fmtDate(a.date),
+          title: `🩺 Visita Medica #${medVisitsCount} (${hoursCount}h)`,
+          hours: hoursCount,
+          deadline: `${fmtDate(deadline.toISOString().slice(0,10))} (2 mesi)`,
+          isExpired: isExpired,
+          type: 'visita_medica'
+        });
       }
     });
 
@@ -791,7 +777,7 @@ async function renderOre(container, state) {
       else subsDone++;
     });
 
-    const saldoSubs = initialSubs + shortPermitHours + medDebtHours - subsDone;
+    const saldoSubs = initialSubs + shortPermitHours + medVisitsHours - subsDone;
     const saldoTrips = initialTrips - tripsDone;
 
     const rowsHtml = mySubs.map(s => {
@@ -817,7 +803,7 @@ async function renderOre(container, state) {
             ${saldoSubs > 0 ? saldoSubs + ' h' : (saldoSubs === 0 ? '0 h (In pari)' : '+' + Math.abs(saldoSubs) + ' h (Credito)')}
           </div>
           <div style="font-size:11px; color:var(--text-secondary); line-height:1.4;">
-            Iniziale: <strong>${initialSubs}h</strong> | Permessi: <strong>${shortPermitHours}h</strong> | Visite extra: <strong>${medDebtHours}h</strong>
+            Iniziale: <strong>${initialSubs}h</strong> | Permessi: <strong>${shortPermitHours}h</strong> | Visite mediche: <strong>${medVisitsHours}h</strong>
           </div>
         </div>
 
@@ -839,13 +825,13 @@ async function renderOre(container, state) {
         <div class="stat-card" style="background:#fdf2f8; border:1px solid #fbcfe8; padding:16px; border-radius:10px;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <div style="font-size:13px; font-weight:700; color:#be185d;">🩺 VISITE MEDICHE</div>
-            <span class="badge" style="background:#fce7f3; color:#be185d; border:1px solid #fbcfe8;">${medVisitsCount}/3 req</span>
+            <span class="badge" style="background:#fce7f3; color:#be185d; border:1px solid #fbcfe8;">${medVisitsCount} req</span>
           </div>
           <div style="font-size:26px; font-weight:800; color:#be185d; margin:8px 0 4px 0;">
-            ${medExemptHours + medDebtHours} h tot
+            ${medVisitsHours} h tot
           </div>
           <div style="font-size:11px; color:var(--text-secondary); line-height:1.4;">
-            Esenti (prime 3): <strong>${medExemptHours}h</strong> | A debito: <strong>${medDebtHours}h</strong>
+            Ore a recupero entro 2 mesi (Art. 16 CCNL)
           </div>
         </div>
       </div>

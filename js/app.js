@@ -291,7 +291,7 @@ const APP = (() => {
           <ul>
             <li><strong>Debito Iniziale (Supplenze e Uscite)</strong>: Assegnato all'inizio dell'anno per cattedra o potenziamento, è valido per <strong>l'intero anno scolastico</strong>.</li>
             <li><strong>Permessi Brevi (Art. 16 CCNL)</strong>: Fruibili fino a un massimo pari all'orario settimanale di cattedra (es. 18h). Devono essere recuperati tramite supplenze entro <strong>2 mesi</strong> dalla richiesta.</li>
-            <li><strong>Visite Mediche a Ore</strong>: Le prime <strong>3 richieste annuali</strong> sono esenti dal recupero (franchigia d'istituto). Dalla 4ª richiesta in poi, le ore confluiscono nel debito supplenze con termine di recupero a 2 mesi.</li>
+            <li><strong>Visite Mediche a Ore</strong>: Le ore di visita medica breve confluiscono nei permessi da recuperare entro 2 mesi. Per visite a giornata intera o esami specialistici continuativi, selezionare <em>Malattia</em> o <em>Permessi Giornalieri</em>.</li>
           </ul>
 
           <h4 style="color: var(--accent);">🤒 Segnalazione Assenza per Malattia</h4>
@@ -299,8 +299,8 @@ const APP = (() => {
           <div class="badge badge-warning" style="margin-bottom:10px">⚠️ Promemoria Amministrativo</div>
           <p>La trasmissione del certificato medico telematico o del numero di protocollo PUC deve essere effettuata direttamente verso la Segreteria del Personale secondo le consuete modalità istituzionali.</p>
           
-          <h4 style="color: var(--accent);">🌴 Ferie, Formazione e Altri Permessi</h4>
-          <p>Le richieste di assenza per Ferie (fino a 6gg con sostituti concordati), Formazione (5gg), Concorsi (8gg), Matrimonio (15gg) e Sindacali (12gg) vengono registrate e validate dall'amministrazione.</p>
+          <h4 style="color: var(--accent);">🌴 Permessi Giornalieri e 6 Giorni di Ferie (Art. 15 c. 2)</h4>
+          <p>Il docente ha a disposizione <strong>3 giorni di permesso retribuito</strong> per motivi personali/familiari e può inoltre fruire dei <strong>6 giorni di ferie</strong> durante le lezioni alle stesse condizioni (autocertificazione), per un totale fino a <strong>9 giorni retribuiti/anno non soggetti a recupero</strong>.</p>
           <div class="badge badge-info" style="margin-bottom:10px">Nota per il personale a tempo determinato</div>
           <p>Il personale a tempo determinato (supplenti) può usufruire dei permessi e delle ferie maturate in proporzione al servizio prestato, secondo quanto previsto dal CCNL vigente.</p>
           

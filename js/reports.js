@@ -212,7 +212,7 @@ var ReportsView = (() => {
             shortPermitHours += hoursCount;
           } else if (type === 'visita_medica' || type === 'medical_visit' || type === 'visita') {
             medVisitsCount++;
-            if (medVisitsCount > 3) medDebtHours += hoursCount;
+            medDebtHours += hoursCount;
           }
         });
 

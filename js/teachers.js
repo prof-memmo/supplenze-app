@@ -514,27 +514,16 @@ var TeachersView = (() => {
           
           if (type === 'permit_hour' || type === 'permesso_breve' || type === 'permesso_ora') {
             stats.short_permits_hours += hoursCount;
-            // Verifica scadenza 2 mesi (60 giorni)
             if (a.date) {
-              const dAssenza = new Date(a.date);
-              const diffDays = Math.floor((now - dAssenza) / (1000 * 60 * 60 * 24));
-              if (diffDays > 60) {
-                stats.expired_permits_hours += hoursCount;
-              }
+              const diffDays = Math.floor((now - new Date(a.date)) / (1000 * 60 * 60 * 24));
+              if (diffDays > 60) stats.expired_permits_hours += hoursCount;
             }
           } else if (type === 'visita_medica' || type === 'medical_visit' || type === 'visita') {
             stats.med_requests++;
-            if (stats.med_requests <= 3) {
-              stats.med_exempt_hours += hoursCount;
-            } else {
-              stats.med_debt_hours += hoursCount;
-              if (a.date) {
-                const dAssenza = new Date(a.date);
-                const diffDays = Math.floor((now - dAssenza) / (1000 * 60 * 60 * 24));
-                if (diffDays > 60) {
-                  stats.expired_permits_hours += hoursCount;
-                }
-              }
+            stats.med_debt_hours += hoursCount;
+            if (a.date) {
+              const diffDays = Math.floor((now - new Date(a.date)) / (1000 * 60 * 60 * 24));
+              if (diffDays > 60) stats.expired_permits_hours += hoursCount;
             }
           }
         });
@@ -566,7 +555,7 @@ var TeachersView = (() => {
                   <th style="text-align:center;">Cattedra</th>
                   <th style="text-align:center;">Debito Iniziale</th>
                   <th style="text-align:center;">Permessi Brevi</th>
-                  <th style="text-align:center;">Visite Extra (>3)</th>
+                  <th style="text-align:center;">Visite Mediche</th>
                   <th style="text-align:center; color:var(--success-text);">Supplenze Svolte</th>
                   <th style="text-align:center; font-weight:700;">SALDO RESIDUO</th>
                   <th style="text-align:center;">Stato Scadenze</th>
@@ -583,7 +572,7 @@ var TeachersView = (() => {
                     <td style="text-align:center;"><span class="badge badge-neutral">${s.weekly_hours}h</span></td>
                     <td style="text-align:center; font-weight:600;">${s.initial_subs} h</td>
                     <td style="text-align:center;">${s.short_permits_hours} h</td>
-                    <td style="text-align:center;">${s.med_debt_hours} h</td>
+                    <td style="text-align:center;">${s.med_debt_hours} h <span style="font-size:10px; color:var(--text-secondary)">(${s.med_requests} req)</span></td>
                     <td style="text-align:center; font-weight:700; color:var(--success-text);">${s.subs_done} h</td>
                     <td style="text-align:center; font-weight:800; font-size:13px; color:${saldo > 0 ? 'var(--warning-text, #d97706)' : 'var(--success-text, #16a34a)'}">${saldo > 0 ? saldo + ' h' : (saldo === 0 ? '0 h' : '+' + Math.abs(saldo) + ' h (Credito)')}</td>
                     <td style="text-align:center;">
