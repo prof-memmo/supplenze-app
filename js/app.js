@@ -286,24 +286,26 @@ const APP = (() => {
           <div class="badge badge-success" style="margin-bottom:10px">⭐ Credito Ferie</div>
           <p>Se sostituisci un collega in <strong>Ferie</strong> o <strong>Formazione</strong>, l'ora ti verrà accreditata per scalare il tuo eventuale debito orario.</p>
 
-          <h4 style="color: var(--accent);">📊 Calcolo Debiti e Trimestri</h4>
-          <p>Il sistema ripartisce l'anno in <strong>3 Trimestri</strong> (Q1: Set-Nov, Q2: Dic-Feb, Q3: Mar-Giu). I debiti orari vengono conteggiati nel trimestre di riferimento.</p>
+          <h4 style="color: var(--accent);">📊 Calcolo Debito Orario e Recuperi</h4>
+          <p>Il sistema gestisce i debiti e i recuperi orari su base continuativa annuale:</p>
+          <ul>
+            <li><strong>Debito Iniziale (Supplenze e Uscite)</strong>: Assegnato all'inizio dell'anno per cattedra o potenziamento, è valido per <strong>l'intero anno scolastico</strong>.</li>
+            <li><strong>Permessi Brevi (Art. 16 CCNL)</strong>: Fruibili fino a un massimo pari all'orario settimanale di cattedra (es. 18h). Devono essere recuperati tramite supplenze entro <strong>2 mesi</strong> dalla richiesta.</li>
+            <li><strong>Visite Mediche a Ore</strong>: Le prime <strong>3 richieste annuali</strong> sono esenti dal recupero (franchigia d'istituto). Dalla 4ª richiesta in poi, le ore confluiscono nel debito supplenze con termine di recupero a 2 mesi.</li>
+          </ul>
 
-          <h4 style="margin-top:0; color: var(--accent);">1. Permessi Brevi e Recupero</h4>
-          <p>I permessi orari brevi (fino a metà dell'orario giornaliero) devono essere recuperati entro <strong>due mesi</strong> dalla richiesta.</p>
-          <div class="badge badge-warning" style="margin-bottom:10px">⚠️ Nota Bene</div>
-          <p>Le ore di permesso breve possono essere recuperate in ore di servizio effettivo, spesso concordate con il dirigente scolastico (es. potenziamento, sostituzioni).</p>
+          <h4 style="color: var(--accent);">🤒 Segnalazione Assenza per Malattia</h4>
+          <p>La segnalazione dell'assenza per malattia sull'applicazione serve unicamente a consentire alla scuola di organizzare tempestivamente le supplenze delle classi.</p>
+          <div class="badge badge-warning" style="margin-bottom:10px">⚠️ Promemoria Amministrativo</div>
+          <p>La trasmissione del certificato medico telematico o del numero di protocollo PUC deve essere effettuata direttamente verso la Segreteria del Personale secondo le consuete modalità istituzionali.</p>
           
-          <h4 style="color: var(--accent);">2. Permessi, Ferie e Formazione</h4>
-          <p>Le richieste di assenza vengono gestite tramite i relativi moduli (Ferie, Formazione, Concorsi, Matrimonio). Ogni assenza deve essere approvata dall'amministratore.</p>
+          <h4 style="color: var(--accent);">🌴 Ferie, Formazione e Altri Permessi</h4>
+          <p>Le richieste di assenza per Ferie (fino a 6gg con sostituti concordati), Formazione (5gg), Concorsi (8gg), Matrimonio (15gg) e Sindacali (12gg) vengono registrate e validate dall'amministrazione.</p>
           <div class="badge badge-info" style="margin-bottom:10px">Nota per il personale a tempo determinato</div>
-          <p>Il personale a tempo determinato (supplenti) può usufruire dei permessi e delle <strong>ferie maturate in proporzione al servizio prestato</strong>, secondo quanto previsto dal contratto vigente. È necessario comunicare tempestivamente eventuali variazioni al plesso o alla segreteria.</p>
+          <p>Il personale a tempo determinato (supplenti) può usufruire dei permessi e delle ferie maturate in proporzione al servizio prestato, secondo quanto previsto dal CCNL vigente.</p>
           
-          <h4 style="color: var(--accent);">3. Assenza per Ferie (con Sostituti)</h4>
-          <p>In caso di ferie, il docente deve indicare nel modulo i colleghi individuati per la copertura delle proprie ore. Una volta approvata la richiesta dall'amministratore, i sostituti riceveranno una notifica e dovranno "firmare" la sostituzione concordata nell'area personale.</p>
-          
-          <h4 style="color: var(--accent);">4. Firma Sostituzioni</h4>
-          <p>Tutte le sostituzioni assegnate o concordate devono essere firmate digitalmente tramite il pulsante "Firma" nella sezione "Sostituzioni Assegnate" dell'Area Docente.</p>
+          <h4 style="color: var(--accent);">✍️ Firma Sostituzioni Assegnate</h4>
+          <p>Tutte le sostituzioni assegnate o concordate devono essere confermate digitalmente tramite il pulsante "Firma" nella sezione "Sostituzioni Assegnate" dell'Area Docente.</p>
         </div>
       `,
       footer: '<button class="btn btn-primary" style="width:100%" onclick="this.closest(\'.modal-overlay\').remove()">Ho Capito</button>',

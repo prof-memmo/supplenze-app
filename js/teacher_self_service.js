@@ -74,15 +74,37 @@ var TeacherSelfServiceView = (() => {
     // Load teacher info
     try {
       const teachers = await API.get(`/teachers?year_id=${_yearId}`);
-      _teacher = teachers.find(t => t.id == _teacherId) || { name: state.user?.username || 'Docente', subject: '', hours_subs: 0, hours_trips: 0 };
-      container.querySelector('#ts-subtitle').textContent = `${_teacher.name} — ${_teacher.subject || ''}`;
+      _teacher = teachers.find(t => t.id == _teacherId) || { name: state.user?.username || 'Docente', subject: '', weekly_hours: 18, hours_subs: 0, hours_trips: 0 };
+      const weeklyH = _teacher.weekly_hours || 18;
+      container.querySelector('#ts-subtitle').textContent = `${_teacher.name} — ${_teacher.subject || ''} (Cattedra ${weeklyH}h)`;
       
-      // Load stats
-      const stats = await API.get(`/absences/stats?teacher_id=${_teacherId}&year_id=${_yearId}`) || {};
+      // Load stats & absences to compute dynamic counters
+      const [stats, myAbsences] = await Promise.all([
+        API.get(`/absences/stats?teacher_id=${_teacherId}&year_id=${_yearId}`) || {},
+        API.get(`/absences?year_id=${_yearId}`)
+      ]);
+
+      const teacherAbs = (myAbsences || []).filter(a => a.teacher_id == _teacherId && a.status !== 'rejected');
+      
+      let shortPermitHours = 0;
+      let medVisitsCount = 0;
+      let medVisitsHours = 0;
+
+      teacherAbs.forEach(a => {
+        const type = (a.type || '').toLowerCase();
+        const hoursCount = a.hours_count ? parseInt(a.hours_count) : (a.hours && Array.isArray(a.hours) ? a.hours.length : 1);
+        if (type === 'permesso_orario' || type === 'permit_hour' || type === 'permesso_breve' || type === 'permesso_ora') {
+          shortPermitHours += hoursCount;
+        } else if (type === 'visita_medica' || type === 'medical_visit' || type === 'visita') {
+          medVisitsCount++;
+          medVisitsHours += hoursCount;
+        }
+      });
+
       const s = {
         ferie: stats.ferie || 0,
         formazione: stats.formazione || 0,
-        permessi: stats.permessi_giornalieri || 0,
+        permessi_giornalieri: stats.permessi_giornalieri || 0,
         concorsi: stats.concorsi || 0,
         matrimonio: stats.matrimonio || 0,
         sindacali: stats.permessi_sindacali || 0,
@@ -91,11 +113,13 @@ var TeacherSelfServiceView = (() => {
 
       container.querySelector('#ts-stats-bar').innerHTML = `
         <div class="badge badge-info" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">🏝️ Ferie: <strong>${s.ferie}/6</strong></div>
-        <div class="badge badge-warning" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">📚 Formazione: <strong>${s.formazione}/5</strong></div>
-        <div class="badge badge-success" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">👨‍👩‍👧‍👦 Permessi: <strong>${s.permessi}/3</strong></div>
+        <div class="badge badge-success" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">👥 Permessi Giornalieri: <strong>${s.permessi_giornalieri}/3</strong></div>
+        <div class="badge badge-warning" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">⏳ Permessi Brevi: <strong>${shortPermitHours}/${weeklyH} h</strong></div>
+        <div class="badge badge-primary" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">🩺 Visite Mediche: <strong>${medVisitsCount}/3 req</strong> <span style="font-size:10px; opacity:0.8">(${medVisitsHours}h tot)</span></div>
+        <div class="badge badge-secondary" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">📚 Formazione: <strong>${s.formazione}/5</strong></div>
         <div class="badge badge-secondary" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">📝 Concorsi: <strong>${s.concorsi}/8</strong></div>
-        <div class="badge badge-primary" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">💍 Matrimonio: <strong>${s.matrimonio}/15</strong></div>
-        <div class="badge badge-neutral" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">📢 Permesso Sindacale: <strong>${s.sindacali}/12</strong></div>
+        <div class="badge badge-neutral" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">💍 Matrimonio: <strong>${s.matrimonio}/15</strong></div>
+        <div class="badge badge-neutral" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">📢 Sindacale: <strong>${s.sindacali}/12</strong></div>
         <div class="badge badge-ghost" style="background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; font-size:12px;">👥 Assemblee: <strong>${s.assemblea}/10</strong></div>
       `;
     } catch(e) { console.error('Stats error:', e); }
@@ -148,13 +172,21 @@ var TeacherSelfServiceView = (() => {
         </div>
         <form id="ts-absence-form">
           <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:10px; margin-bottom:16px;">
+            <label id="ts-tipo-mal-lbl" style="display:flex; align-items:center; gap:8px; padding:10px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
+              <input type="radio" name="ts-abs-tipo" id="ts-tipo-mal" value="malattia" style="width:15px;height:15px;">
+              <div><div style="font-weight:700; font-size:11px;">🤒 Malattia</div><div style="font-size:9px; color:var(--text-secondary);">Intera giornata</div></div>
+            </label>
             <label id="ts-tipo-gen-lbl" style="display:flex; align-items:center; gap:8px; padding:10px; border-radius:10px; cursor:pointer; border:2px solid var(--accent); background:var(--accent-light);">
               <input type="radio" name="ts-abs-tipo" id="ts-tipo-gen" value="assenza_giornaliera" checked style="width:15px;height:15px;">
-              <div><div style="font-weight:700; font-size:11px;">🚫 Permesso Giorno</div><div style="font-size:9px; color:var(--text-secondary);">Intero</div></div>
+              <div><div style="font-weight:700; font-size:11px;">🚫 Permessi Giornalieri</div><div style="font-size:9px; color:var(--text-secondary);">Max 3gg/anno</div></div>
             </label>
             <label id="ts-tipo-ora-lbl" style="display:flex; align-items:center; gap:8px; padding:10px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
               <input type="radio" name="ts-abs-tipo" id="ts-tipo-ora" value="permesso_orario" style="width:15px;height:15px;">
-              <div><div style="font-weight:700; font-size:11px;">⏳ Permesso Ora</div><div style="font-size:9px; color:var(--text-secondary);">Singole ore</div></div>
+              <div><div style="font-weight:700; font-size:11px;">⏳ Permessi Brevi</div><div style="font-size:9px; color:var(--text-secondary);">Singole ore</div></div>
+            </label>
+            <label id="ts-tipo-vis-lbl" style="display:flex; align-items:center; gap:8px; padding:10px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
+              <input type="radio" name="ts-abs-tipo" id="ts-tipo-vis" value="visita_medica" style="width:15px;height:15px;">
+              <div><div style="font-weight:700; font-size:11px;">🩺 Visita Medica</div><div style="font-size:9px; color:var(--text-secondary);">Max 3 esenti</div></div>
             </label>
             <label id="ts-tipo-usc-lbl" style="display:flex; align-items:center; gap:8px; padding:10px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
               <input type="radio" name="ts-abs-tipo" id="ts-tipo-usc" value="uscita_didattica" style="width:15px;height:15px;">
@@ -180,6 +212,14 @@ var TeacherSelfServiceView = (() => {
               <input type="radio" name="ts-abs-tipo" id="ts-tipo-sin" value="permessi_sindacali" style="width:15px;height:15px;">
               <div><div style="font-weight:700; font-size:11px;">📢 Permesso Sindacale</div></div>
             </label>
+          </div>
+
+          <div id="ts-malattia-disclaimer" class="alert alert-info" style="display:none; font-size:12px; margin-bottom:16px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.3); border-radius:8px; padding:12px;">
+            ℹ️ <strong>Promemoria Malattia:</strong> Questa segnalazione serve per organizzare tempestivamente le supplenze. Il certificato telematico o numero di protocollo PUC va comunicato direttamente alla Segreteria del Personale secondo le consuete modalità.
+          </div>
+
+          <div id="ts-visita-disclaimer" class="alert alert-info" style="display:none; font-size:12px; margin-bottom:16px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:12px;">
+            🩺 <strong>Visite Mediche:</strong> Le prime 3 richieste dell'anno scolastico sono esenti dal recupero. Dalla 4ª richiesta le ore generano debito per supplenze (con recupero entro 2 mesi).
           </div>
 
           <div class="form-group">
@@ -211,7 +251,7 @@ var TeacherSelfServiceView = (() => {
           
           <div class="form-group" id="reason-wrapper">
             <label>Motivazione (facoltativo)</label>
-            <textarea id="abs-reason" class="form-control" rows="2" placeholder="Es. Motivi personali, Visita medica..."></textarea>
+            <textarea id="abs-reason" class="form-control" rows="2" placeholder="Es. Motivi personali, Visita specialistica..."></textarea>
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%; font-weight:700;">Invia Segnalazione</button>
         </form>
@@ -219,8 +259,10 @@ var TeacherSelfServiceView = (() => {
     `;
 
     const form = container.querySelector('#ts-absence-form');
+    const tipoMalEl = container.querySelector('#ts-tipo-mal');
     const tipoGenEl = container.querySelector('#ts-tipo-gen');
     const tipoOraEl = container.querySelector('#ts-tipo-ora');
+    const tipoVisEl = container.querySelector('#ts-tipo-vis');
     const tipoUscEl = container.querySelector('#ts-tipo-usc');
     const tipoFerEl = container.querySelector('#ts-tipo-fer');
     const tipoForEl = container.querySelector('#ts-tipo-for');
@@ -229,11 +271,13 @@ var TeacherSelfServiceView = (() => {
     const tipoSinEl = container.querySelector('#ts-tipo-sin');
 
     const updateTipoStyle = () => {
+      const isMal = tipoMalEl?.checked;
       const isOra = tipoOraEl?.checked;
+      const isVis = tipoVisEl?.checked;
       const isUsc = tipoUscEl?.checked;
       const isFer = tipoFerEl?.checked;
       
-      const ids = ['ts-tipo-gen','ts-tipo-ora','ts-tipo-usc','ts-tipo-fer','ts-tipo-for','ts-tipo-con','ts-tipo-mat','ts-tipo-sin'];
+      const ids = ['ts-tipo-mal','ts-tipo-gen','ts-tipo-ora','ts-tipo-vis','ts-tipo-usc','ts-tipo-fer','ts-tipo-for','ts-tipo-con','ts-tipo-mat','ts-tipo-sin'];
       ids.forEach(id => {
         const el = container.querySelector('#' + id);
         const lbl = container.querySelector('#' + id + '-lbl');
@@ -243,12 +287,15 @@ var TeacherSelfServiceView = (() => {
         }
       });
 
-      container.querySelector('#hours-wrapper').style.display = (isOra || isUsc) ? 'block' : 'none';
+      container.querySelector('#ts-malattia-disclaimer').style.display = isMal ? 'block' : 'none';
+      container.querySelector('#ts-visita-disclaimer').style.display = isVis ? 'block' : 'none';
+
+      container.querySelector('#hours-wrapper').style.display = (isOra || isVis || isUsc) ? 'block' : 'none';
       container.querySelector('#classes-wrapper').style.display = isUsc ? 'block' : 'none';
       container.querySelector('#accompanists-wrapper').style.display = isUsc ? 'block' : 'none';
       container.querySelector('#subs-wrapper').style.display = isFer ? 'block' : 'none';
       
-      const hideReason = isFer || isUsc || tipoForEl?.checked || tipoConEl?.checked || tipoSinEl?.checked || tipoMatEl?.checked;
+      const hideReason = isMal || isFer || isUsc || tipoForEl?.checked || tipoConEl?.checked || tipoSinEl?.checked || tipoMatEl?.checked;
       container.querySelector('#reason-wrapper').style.display = hideReason ? 'none' : 'block';
     };
 
@@ -294,9 +341,9 @@ var TeacherSelfServiceView = (() => {
       }
     };
 
-    [tipoGenEl, tipoOraEl, tipoUscEl, tipoFerEl, tipoForEl, tipoConEl, tipoMatEl, tipoSinEl].forEach(el => el?.addEventListener('change', () => {
+    [tipoMalEl, tipoGenEl, tipoOraEl, tipoVisEl, tipoUscEl, tipoFerEl, tipoForEl, tipoConEl, tipoMatEl, tipoSinEl].forEach(el => el?.addEventListener('change', () => {
       updateTipoStyle();
-      if (tipoFerEl.checked) updateFerieSubs();
+      if (tipoFerEl?.checked) updateFerieSubs();
     }));
 
     // Sincronizzazione Date
@@ -308,7 +355,7 @@ var TeacherSelfServiceView = (() => {
           endEl.value = startEl.value;
         }
         endEl.min = startEl.value;
-        if (tipoFerEl.checked) updateFerieSubs();
+        if (tipoFerEl?.checked) updateFerieSubs();
       });
     }
 
@@ -335,10 +382,10 @@ var TeacherSelfServiceView = (() => {
       const start = e.target.value;
       const endEl = container.querySelector('#abs-date-end');
       if (start && (!endEl.value || endEl.value < start)) endEl.value = start;
-      if (tipoFerEl.checked) updateFerieSubs();
+      if (tipoFerEl?.checked) updateFerieSubs();
     });
     container.querySelector('#abs-date-end').addEventListener('change', () => { 
-      if (tipoFerEl.checked) updateFerieSubs(); 
+      if (tipoFerEl?.checked) updateFerieSubs(); 
     });
 
     form.onsubmit = async (e) => {
@@ -349,10 +396,10 @@ var TeacherSelfServiceView = (() => {
         date: container.querySelector('#abs-date-start').value,
         date_end: container.querySelector('#abs-date-end').value,
         type: container.querySelector('input[name="ts-abs-tipo"]:checked').value,
-        reason: container.querySelector('#abs-reason').value,
+        reason: container.querySelector('#abs-reason')?.value || '',
         status: 'pending'
       };
-      if (payload.type === 'permesso_orario' || payload.type === 'uscita_didattica') {
+      if (payload.type === 'permesso_orario' || payload.type === 'visita_medica' || payload.type === 'uscita_didattica') {
         payload.hours = tsHours.getValue();
         if (!payload.hours.length) return APP.toast('Seleziona le ore', 'warning');
       }
@@ -373,7 +420,7 @@ var TeacherSelfServiceView = (() => {
     };
 
     updateTipoStyle();
-    if (tipoFerEl.checked) updateFerieSubs();
+    if (tipoFerEl?.checked) updateFerieSubs();
   }
   async function loadMyNotifications(container) {
     const list = container.querySelector('#ts-notifications');
@@ -615,339 +662,396 @@ var TeacherSelfServiceView = (() => {
             if (type === 'disponibile') cellStyle += 'background:var(--success-bg); color:var(--success-text); font-weight:700;';
             else if (type === 'eccedente') cellStyle += 'background:rgba(139,92,246,0.15); color:#a78bfa; font-weight:700;';
             else if (type === 'empty') cellStyle += 'color:var(--text-muted); opacity:0.3;';
-            
-            const isLastHour = idx === hours.length - 1;
-            const borderRight = isLastHour ? 'border-right:2px solid var(--border-thick)' : '';
+      const isLastHour = idx === hours.length - 1;
+      const borderRight = isLastHour ? 'border-right:2px solid var(--border-thick)' : '';
 
-            html += `<td style="${cellStyle}; ${borderRight}">${escHtml(val||'—')}</td>`;
-          });
-        });
-        html += '</tr>';
-      });
+      html += `<td style="${cellStyle}; ${borderRight}">${escHtml(val||'—')}</td>`;
+    });
+  });
+  html += '</tr>';
+});
+html += '</tbody></table></div>';
+target.innerHTML = html;
+} catch(e) { 
+console.error(e);
+target.innerHTML = '<div class="empty-state">Errore caricamento orario completo.</div>'; 
+}
+}
 
-      html += '</tbody></table></div>';
-      target.innerHTML = html;
-    } catch(e) { 
-      console.error(e);
-      target.innerHTML = '<div class="empty-state">Errore caricamento orario completo.</div>'; 
-    }
-  }
+// ─── TAB 3: LE MIE ORE ─────────────────────────────────────────────────────
 
-  // ─── TAB 3: LE MIE ORE ─────────────────────────────────────────────────────
+async function renderOre(container, state) {
+  container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Caricamento ore...</div>';
+  try {
+    const [history, absences] = await Promise.all([
+      API.get(`/substitutions/history?year_id=${_yearId}&teacher_id=${_teacherId}`),
+      API.get(`/absences?year_id=${_yearId}`)
+    ]);
 
-  async function renderOre(container, state) {
-    container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Caricamento ore...</div>';
-    try {
-      const history = await API.get(`/substitutions/history?year_id=${_yearId}&teacher_id=${_teacherId}`);
-      const mySubs = history.filter(s => s.substitute_teacher_id == _teacherId);
+    const mySubs = (history || []).filter(s => s.substitute_teacher_id == _teacherId);
+    const myAbsences = (absences || []).filter(a => a.teacher_id == _teacherId && a.status !== 'rejected');
 
-      const totalRec = mySubs.filter(s => s.hours_counted).length;
-      const totalEcc = mySubs.filter(s => !s.hours_counted).length;
-      const debtSubs = _teacher?.hours_subs || 0;
-      const debtTrips = _teacher?.hours_trips || 0;
-      const totalDebt = debtSubs + debtTrips;
-
-      // Stats by trimester and type
-      const Q = { 
-        subs: { Q1:{rec:0, target: Math.ceil(debtSubs/3)}, Q2:{rec:0, target: Math.ceil((debtSubs-Math.ceil(debtSubs/3))/2)}, Q3:{rec:0, target: Math.max(0, debtSubs - Math.ceil(debtSubs/3) - Math.ceil((debtSubs-Math.ceil(debtSubs/3))/2))} },
-        trips: { Q1:{rec:0, target: Math.ceil(debtTrips/3)}, Q2:{rec:0, target: Math.ceil((debtTrips-Math.ceil(debtTrips/3))/2)}, Q3:{rec:0, target: Math.max(0, debtTrips - Math.ceil(debtTrips/3) - Math.ceil((debtTrips-Math.ceil(debtTrips/3))/2))} }
-      };
-
-      mySubs.forEach(s => {
-        if (!s.hours_counted) return;
-        const m = new Date(s.date).getMonth()+1;
-        const q = [9,10,11].includes(m) ? 'Q1' : [12,1,2].includes(m) ? 'Q2' : 'Q3';
-        // Heuristic to distinguish between sub and trip in history
-        const isTrip = (s.type === 'trip' || (s.notes||'').toLowerCase().includes('uscita') || (s.notes||'').toLowerCase().includes('soggiorno'));
-        if (isTrip) Q.trips[q].rec++; else Q.subs[q].rec++;
-      });
-
-      const rowsHtml = mySubs.map(s => {
-        const isRec = !!s.hours_counted;
-        return `<tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:7px 12px;"><strong>${fmtDate(s.date)}</strong></td>
-          <td>${s.hour}ª</td>
-          <td><span class="badge ${isRec?'badge-info':'badge-warning'}">${isRec?'Recupero Ore':'Ore Eccedenti / Straordinario'}</span></td>
-          <td>${escHtml(s.class_name||'—')}</td>
-          <td>${s.accepted ? '✅ Firmato' : '<span style="font-size:11px; color:var(--text-muted);">In attesa</span>'}</td>
-        </tr>`;
-      }).join('');
-
-      container.innerHTML = `
-        <div class="stats-grid" style="grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:20px;">
-          <div class="stat-card" style="background:#eff6ff; border:1px solid #dbeafe;">
-            <div style="display:flex; justify-content:space-between; align-items:center">
-              <div class="stat-value" style="color:#1d4ed8; font-size:24px">${debtSubs}</div>
-              <div class="badge badge-info">${Q.subs.Q1.rec + Q.subs.Q2.rec + Q.subs.Q3.rec} recuperate</div>
-            </div>
-            <div class="stat-label" style="margin-top:4px">Ore Sostituzioni da Recuperare</div>
-          </div>
-          <div class="stat-card" style="background:#f0fdf4; border:1px solid #dcfce7;">
-            <div style="display:flex; justify-content:space-between; align-items:center">
-              <div class="stat-value" style="color:#15803d; font-size:24px">${debtTrips}</div>
-              <div class="badge badge-success">${Q.trips.Q1.rec + Q.trips.Q2.rec + Q.trips.Q3.rec} recuperate</div>
-            </div>
-            <div class="stat-label" style="margin-top:4px">Ore Uscite/Soggiorni da Recuperare</div>
-          </div>
-          <div class="stat-card" style="background:#fff7ed; border:1px solid #ffedd5; grid-column: span 2">
-            <div style="display:flex; justify-content:space-between; align-items:center">
-              <div class="stat-value" style="color:#c2410c; font-size:24px">${totalEcc}</div>
-              <div style="font-size:12px; color:var(--text-secondary)">Ore effettuate oltre il debito orario</div>
-            </div>
-            <div class="stat-label" style="margin-top:4px">Ore Eccedenti / Straordinario</div>
-          </div>
-        </div>
-
-        <div class="card mb-20" style="padding:0; overflow:hidden; border:1px solid var(--border)">
-          <div style="padding:12px 20px; background:var(--bg-secondary); border-bottom:1px solid var(--border); font-weight:700; font-size:13px; display:flex; justify-content:space-between">
-            <span>📅 Ripartizione per Trimestre</span>
-            <span style="font-weight:400; font-size:11px; color:var(--text-secondary)">Debito totale: ${totalDebt} ore</span>
-          </div>
-          <table style="width:100%; border-collapse:collapse; font-size:12px;">
-            <thead>
-              <tr style="background:var(--bg-secondary); font-size:10px; text-transform:uppercase; letter-spacing:0.5px">
-                <th style="padding:10px 15px; text-align:left; border-bottom:2px solid var(--border)">Tipo & Trimestre</th>
-                <th style="text-align:center; border-bottom:2px solid var(--border)">Da Recuperare</th>
-                <th style="text-align:center; border-bottom:2px solid var(--border)">Recuperate</th>
-                <th style="text-align:center; border-bottom:2px solid var(--border)">Stato</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- Sostituzioni -->
-              <tr style="background:rgba(59,130,246,0.03)"><td colspan="4" style="padding:6px 15px; font-weight:700; font-size:11px; color:#1d4ed8">📘 RECUPERO SOSTITUZIONI</td></tr>
-              <tr>
-                <td style="padding:8px 15px;">1° Trimestre (Set–Nov)</td>
-                <td style="text-align:center;">${Q.subs.Q1.target}</td>
-                <td style="text-align:center; font-weight:700;">${Q.subs.Q1.rec}</td>
-                <td style="text-align:center;">${Q.subs.Q1.rec >= Q.subs.Q1.target ? '✅' : '⏳'}</td>
-              </tr>
-              <tr>
-                <td style="padding:8px 15px;">2° Trimestre (Dic–Feb)</td>
-                <td style="text-align:center;">${Q.subs.Q2.target}</td>
-                <td style="text-align:center; font-weight:700;">${Q.subs.Q2.rec}</td>
-                <td style="text-align:center;">${Q.subs.Q2.rec >= Q.subs.Q2.target ? '✅' : '⏳'}</td>
-              </tr>
-              <tr style="border-bottom:1px solid var(--border)">
-                <td style="padding:8px 15px;">3° Trimestre (Mar–Giu)</td>
-                <td style="text-align:center;">${Q.subs.Q3.target}</td>
-                <td style="text-align:center; font-weight:700;">${Q.subs.Q3.rec}</td>
-                <td style="text-align:center;">${Q.subs.Q3.rec >= Q.subs.Q3.target ? '✅' : '⏳'}</td>
-              </tr>
-              <!-- Uscite -->
-              <tr style="background:rgba(34,197,94,0.03)"><td colspan="4" style="padding:6px 15px; font-weight:700; font-size:11px; color:#15803d">🚌 RECUPERO USCITE / SOGGIORNI</td></tr>
-              <tr>
-                <td style="padding:8px 15px;">1° Trimestre (Set–Nov)</td>
-                <td style="text-align:center;">${Q.trips.Q1.target}</td>
-                <td style="text-align:center; font-weight:700;">${Q.trips.Q1.rec}</td>
-                <td style="text-align:center;">${Q.trips.Q1.rec >= Q.trips.Q1.target ? '✅' : '⏳'}</td>
-              </tr>
-              <tr>
-                <td style="padding:8px 15px;">2° Trimestre (Dic–Feb)</td>
-                <td style="text-align:center;">${Q.trips.Q2.target}</td>
-                <td style="text-align:center; font-weight:700;">${Q.trips.Q2.rec}</td>
-                <td style="text-align:center;">${Q.trips.Q2.rec >= Q.trips.Q2.target ? '✅' : '⏳'}</td>
-              </tr>
-              <tr>
-                <td style="padding:8px 15px;">3° Trimestre (Mar–Giu)</td>
-                <td style="text-align:center;">${Q.trips.Q3.target}</td>
-                <td style="text-align:center; font-weight:700;">${Q.trips.Q3.rec}</td>
-                <td style="text-align:center;">${Q.trips.Q3.rec >= Q.trips.Q3.target ? '✅' : '⏳'}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="card" style="padding:0; overflow:hidden;">
-          <div style="padding:12px 20px; background:var(--bg-secondary); border-bottom:1px solid var(--border); font-weight:700; font-size:13px;">📋 Storico Completo</div>
-          ${mySubs.length ? `<table style="width:100%; border-collapse:collapse; font-size:13px;">
-            <thead><tr style="background:var(--bg-secondary);">
-              <th style="padding:7px 12px;">Giorno</th><th>Ora</th><th>Tipo</th><th>Classe</th><th>Firma</th>
-            </tr></thead>
-            <tbody>${rowsHtml}</tbody>
-          </table>` : '<div class="empty-state" style="padding:24px;">Nessuna sostituzione o recupero effettuato.</div>'}
-        </div>
-      `;
-    } catch(e) {
-      container.innerHTML = '<div class="empty-state">Errore caricamento dati orari.</div>';
-    }
+    const initialSubs = parseInt(_teacher?.hours_subs) || 0;
+    const initialTrips = parseInt(_teacher?.hours_trips) || 0;
     
-    // Load local permissions list
-    loadShortPermissions(container);
-  }
+    let shortPermitHours = 0;
+    let medVisitsCount = 0;
+    let medExemptHours = 0;
+    let medDebtHours = 0;
+    const now = new Date();
 
-  async function loadShortPermissions(container) {
-    const list = container.querySelector('#ts-permissions-list');
-    if (!list) return;
-    try {
-      const absences = await API.get(`/absences?year_id=${_yearId}`);
-      const myPerms = absences.filter(a => a.teacher_id == _teacherId && a.type === 'permesso_orario' && a.status === 'approved');
+    // Dettaglio assenze
+    const registryItems = [];
+    
+    // 1. Debito Iniziale Supplenze
+    if (initialSubs > 0) {
+      registryItems.push({
+        date: 'Inizio Anno',
+        title: '🏛️ Debito Iniziale Supplenze',
+        hours: initialSubs,
+        deadline: 'Fine Anno Scolastico',
+        isExpired: false,
+        type: 'initial_subs'
+      });
+    }
+
+    // 2. Debito Iniziale Uscite
+    if (initialTrips > 0) {
+      registryItems.push({
+        date: 'Inizio Anno',
+        title: '🚌 Debito Iniziale Uscite / Soggiorni',
+        hours: initialTrips,
+        deadline: 'Fine Anno Scolastico',
+        isExpired: false,
+        type: 'initial_trips'
+      });
+    }
+
+    // 3. Permessi e Visite
+    myAbsences.sort((a,b) => (a.date||'').localeCompare(b.date||'')).forEach(a => {
+      const type = (a.type || '').toLowerCase();
+      const hoursCount = a.hours_count ? parseInt(a.hours_count) : (a.hours && Array.isArray(a.hours) ? a.hours.length : 1);
       
-      if (!myPerms.length) {
-        list.innerHTML = '<div class="empty-state" style="padding:16px;">Nessuna sostituzione breve da recuperare.</div>';
+      if (type === 'permesso_orario' || type === 'permit_hour' || type === 'permesso_breve' || type === 'permesso_ora') {
+        shortPermitHours += hoursCount;
+        const dAssenza = new Date(a.date);
+        const deadline = new Date(dAssenza);
+        deadline.setDate(deadline.getDate() + 60);
+        const isExpired = deadline < now;
+        registryItems.push({
+          date: fmtDate(a.date),
+          title: `⏳ Permesso Breve (${hoursCount}h)`,
+          hours: hoursCount,
+          deadline: `${fmtDate(deadline.toISOString().slice(0,10))} (2 mesi)`,
+          isExpired: isExpired,
+          type: 'permit_hour'
+        });
+      } else if (type === 'visita_medica' || type === 'medical_visit' || type === 'visita') {
+        medVisitsCount++;
+        if (medVisitsCount <= 3) {
+          medExemptHours += hoursCount;
+          registryItems.push({
+            date: fmtDate(a.date),
+            title: `🩺 Visita Medica #${medVisitsCount} (${hoursCount}h)`,
+            hours: hoursCount,
+            deadline: 'Nessuna (Franchigia esente)',
+            isExpired: false,
+            isExempt: true,
+            type: 'med_exempt'
+          });
+        } else {
+          medDebtHours += hoursCount;
+          const dAssenza = new Date(a.date);
+          const deadline = new Date(dAssenza);
+          deadline.setDate(deadline.getDate() + 60);
+          const isExpired = deadline < now;
+          registryItems.push({
+            date: fmtDate(a.date),
+            title: `🩺 Visita Medica #${medVisitsCount} (${hoursCount}h - oltre quota)`,
+            hours: hoursCount,
+            deadline: `${fmtDate(deadline.toISOString().slice(0,10))} (2 mesi)`,
+            isExpired: isExpired,
+            type: 'med_debt'
+          });
+        }
+      }
+    });
+
+    let subsDone = 0;
+    let tripsDone = 0;
+    let eccedenti = 0;
+
+    mySubs.forEach(s => {
+      if (!s.hours_counted) {
+        eccedenti++;
         return;
       }
+      const isTrip = (s.type === 'trip' || (s.notes||'').toLowerCase().includes('uscita') || (s.notes||'').toLowerCase().includes('soggiorno'));
+      if (isTrip) tripsDone++;
+      else subsDone++;
+    });
 
-      list.innerHTML = `<table style="width:100%; border-collapse:collapse; font-size:12px;">
-        <thead><tr style="background:var(--bg-secondary); text-align:left;">
-          <th style="padding:8px 15px;">Data</th><th style="text-align:center;">Ore</th><th>Scadenza Recupero (2 mesi)</th><th>Stato</th>
-        </tr></thead><tbody>
-        ${myPerms.map(p => {
-          const d = new Date(p.date);
-          const deadline = new Date(d);
-          deadline.setMonth(deadline.getMonth() + 2);
-          const isExpired = deadline < new Date();
-          return `<tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:8px 15px;">${fmtDate(p.date)}</td>
-            <td style="text-align:center;">${(p.hours||[]).length}</td>
-            <td style="${isExpired ? 'color:var(--danger-text); font-weight:bold;' : ''}">${fmtDate(deadline.toISOString().slice(0,10))} ${isExpired ? '(SCADUTO)' : ''}</td>
-            <td><span class="badge ${isExpired ? 'badge-neutral' : 'badge-warning'}">${isExpired ? 'Non più dovuto' : 'Da recuperare'}</span></td>
-          </tr>`;
-        }).join('')}
-      </tbody></table>`;
-    } catch(e) {}
-  }
+    const saldoSubs = initialSubs + shortPermitHours + medDebtHours - subsDone;
+    const saldoTrips = initialTrips - tripsDone;
 
-  // ─── TAB 4: ESPORTA ─────────────────────────────────────────────────────────
+    const rowsHtml = mySubs.map(s => {
+      const isRec = !!s.hours_counted;
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:7px 12px;"><strong>${fmtDate(s.date)}</strong></td>
+        <td>${s.hour}ª</td>
+        <td><span class="badge ${isRec?'badge-info':'badge-warning'}">${isRec?'Recupero Ore':'Ore Eccedenti / Straordinario'}</span></td>
+        <td>${escHtml(s.class_name||'—')}</td>
+        <td>${s.accepted ? '✅ Firmato' : '<span style="font-size:11px; color:var(--text-muted);">In attesa</span>'}</td>
+      </tr>`;
+    }).join('');
 
-  async function renderEsporta(container, state) {
     container.innerHTML = `
-      <div class="card" style="padding:24px; max-width:600px;">
-        <div style="font-size:15px; font-weight:700; margin-bottom:6px;">📄 Scegli cosa includere nel documento</div>
-        <div style="font-size:13px; color:var(--text-secondary); margin-bottom:20px;">Seleziona le sezioni che vuoi esportare o stampare come PDF.</div>
-
-        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;">
-          ${[
-            ['cb-notifiche', '🔔 Notifiche recenti'],
-            ['cb-supplenze', '✍️ Sostituzioni assegnate e accettazioni'],
-            ['cb-orario', '📅 Il mio orario personale'],
-            ['cb-riepilogo', '📊 Riepilogo ore (da recuperare, recuperate, eccedenti)'],
-            ['cb-storico', '📋 Storico completo sostituzioni/recuperi'],
-            ['cb-trimestri', '📅 Ripartizione per trimestre'],
-          ].map(([id, label]) => `
-            <label style="display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--bg-secondary); border-radius:8px; cursor:pointer; border:1px solid var(--border); transition:border-color 0.2s;">
-              <input type="checkbox" id="${id}" checked style="width:18px; height:18px; cursor:pointer;">
-              <span style="font-size:14px;">${label}</span>
-            </label>`).join('')}
+      <div class="stats-grid" style="grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin-bottom:20px;">
+        <!-- Card 1: Debito Supplenze -->
+        <div class="stat-card" style="background:#eff6ff; border:1px solid #dbeafe; padding:16px; border-radius:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:13px; font-weight:700; color:#1d4ed8;">📘 DEBITO SUPPLENZE</div>
+            <span class="badge badge-info">${subsDone} h svolte</span>
+          </div>
+          <div style="font-size:26px; font-weight:800; color:${saldoSubs > 0 ? '#1d4ed8' : '#16a34a'}; margin:8px 0 4px 0;">
+            ${saldoSubs > 0 ? saldoSubs + ' h' : (saldoSubs === 0 ? '0 h (In pari)' : '+' + Math.abs(saldoSubs) + ' h (Credito)')}
+          </div>
+          <div style="font-size:11px; color:var(--text-secondary); line-height:1.4;">
+            Iniziale: <strong>${initialSubs}h</strong> | Permessi: <strong>${shortPermitHours}h</strong> | Visite extra: <strong>${medDebtHours}h</strong>
+          </div>
         </div>
 
-        <div style="display:flex; gap:10px;">
-          <button class="btn btn-ghost btn-sm" id="ts-sel-all-exp">✅ Seleziona Tutti</button>
-          <button class="btn btn-ghost btn-sm" id="ts-sel-none-exp">☐ Deseleziona Tutti</button>
-          <button class="btn btn-primary" id="ts-generate-doc" style="margin-left:auto;">🖨️ Genera Documento</button>
+        <!-- Card 2: Debito Uscite -->
+        <div class="stat-card" style="background:#f0fdf4; border:1px solid #dcfce7; padding:16px; border-radius:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:13px; font-weight:700; color:#15803d;">🚌 DEBITO USCITE / SOGGIORNI</div>
+            <span class="badge badge-success">${tripsDone} h svolte</span>
+          </div>
+          <div style="font-size:26px; font-weight:800; color:${saldoTrips > 0 ? '#15803d' : '#16a34a'}; margin:8px 0 4px 0;">
+            ${saldoTrips > 0 ? saldoTrips + ' h' : '0 h (In pari)'}
+          </div>
+          <div style="font-size:11px; color:var(--text-secondary); line-height:1.4;">
+            Debito Iniziale Uscite: <strong>${initialTrips}h</strong>
+          </div>
+        </div>
+
+        <!-- Card 3: Visite Mediche -->
+        <div class="stat-card" style="background:#fdf2f8; border:1px solid #fbcfe8; padding:16px; border-radius:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:13px; font-weight:700; color:#be185d;">🩺 VISITE MEDICHE</div>
+            <span class="badge" style="background:#fce7f3; color:#be185d; border:1px solid #fbcfe8;">${medVisitsCount}/3 req</span>
+          </div>
+          <div style="font-size:26px; font-weight:800; color:#be185d; margin:8px 0 4px 0;">
+            ${medExemptHours + medDebtHours} h tot
+          </div>
+          <div style="font-size:11px; color:var(--text-secondary); line-height:1.4;">
+            Esenti (prime 3): <strong>${medExemptHours}h</strong> | A debito: <strong>${medDebtHours}h</strong>
+          </div>
         </div>
       </div>
+
+      <!-- Registro Recuperi e Scadenze -->
+      <div class="card mb-20" style="padding:0; overflow:hidden; border:1px solid var(--border)">
+        <div style="padding:12px 20px; background:var(--bg-secondary); border-bottom:1px solid var(--border); font-weight:700; font-size:13px; display:flex; justify-content:space-between; align-items:center;">
+          <span>📋 Registro Ore e Scadenze Recupero</span>
+          <span style="font-weight:400; font-size:11px; color:var(--text-secondary);">Recupero permessi brevi entro 2 mesi (Art. 16 CCNL)</span>
+        </div>
+        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+          <thead>
+            <tr style="background:var(--bg-secondary); font-size:10px; text-transform:uppercase; letter-spacing:0.5px">
+              <th style="padding:10px 15px; text-align:left; border-bottom:2px solid var(--border)">Data</th>
+              <th style="text-align:left; border-bottom:2px solid var(--border)">Causale</th>
+              <th style="text-align:center; border-bottom:2px solid var(--border)">Ore</th>
+              <th style="text-align:left; border-bottom:2px solid var(--border)">Termine Recupero</th>
+              <th style="text-align:center; border-bottom:2px solid var(--border)">Stato</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${registryItems.length ? registryItems.map(item => `
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:8px 15px; font-weight:600;">${item.date}</td>
+                <td>${item.title}</td>
+                <td style="text-align:center; font-weight:700;">${item.hours} h</td>
+                <td style="${item.isExpired ? 'color:var(--danger-text); font-weight:bold;' : ''}">${item.deadline}</td>
+                <td style="text-align:center;">
+                  ${item.isExempt 
+                    ? '<span class="badge badge-success">✓ Esente</span>' 
+                    : (item.isExpired 
+                        ? '<span class="badge badge-danger">⚠️ Scaduto >60gg</span>' 
+                        : '<span class="badge badge-info">In corso</span>')}
+                </td>
+              </tr>
+            `).join('') : '<tr><td colspan="5" style="padding:16px; text-align:center; color:var(--text-muted);">Nessun debito o permesso registrato.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Storico Sostituzioni Svolte -->
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div style="padding:12px 20px; background:var(--bg-secondary); border-bottom:1px solid var(--border); font-weight:700; font-size:13px; display:flex; justify-content:space-between; align-items:center;">
+          <span>✍️ Storico Sostituzioni e Supplenze Effettuate</span>
+          <span style="font-size:12px; color:var(--text-secondary)">Totale: ${mySubs.length} (Recuperi: ${subsDone+tripsDone}, Eccedenti: ${eccedenti})</span>
+        </div>
+        ${mySubs.length ? `<table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <thead><tr style="background:var(--bg-secondary);">
+            <th style="padding:7px 12px;">Giorno</th><th>Ora</th><th>Tipo</th><th>Classe</th><th>Firma</th>
+          </tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>` : '<div class="empty-state" style="padding:24px;">Nessuna sostituzione o recupero effettuato.</div>'}
+      </div>
     `;
-
-    container.querySelector('#ts-sel-all-exp').onclick = () => container.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked=true);
-    container.querySelector('#ts-sel-none-exp').onclick = () => container.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked=false);
-    container.querySelector('#ts-generate-doc').onclick = () => generateDocument(container);
+  } catch(e) {
+    console.error(e);
+    container.innerHTML = '<div class="empty-state">Errore caricamento dati ore.</div>';
   }
+}
 
-  async function generateDocument(container) {
-    const sections = {
-      notifiche: container.querySelector('#cb-notifiche')?.checked,
-      supplenze: container.querySelector('#cb-supplenze')?.checked,
-      orario: container.querySelector('#cb-orario')?.checked,
-      riepilogo: container.querySelector('#cb-riepilogo')?.checked,
-      storico: container.querySelector('#cb-storico')?.checked,
-      trimestri: container.querySelector('#cb-trimestri')?.checked,
-    };
+// ─── TAB 4: ESPORTA ─────────────────────────────────────────────────────────
 
-    APP.toast('Generazione documento in corso…', 'info');
-    try {
-      const history = await API.get(`/substitutions/history?year_id=${_yearId}&teacher_id=${_teacherId}`);
-      const mySubs = history.filter(s => s.substitute_teacher_id == _teacherId);
-      const schedule = await API.get(`/schedule?year_id=${_yearId}`);
-      const mySlots = schedule.filter(s => s.teacher_id == _teacherId);
+async function renderEsporta(container, state) {
+  container.innerHTML = `
+    <div class="card" style="padding:24px; max-width:600px;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:6px;">📄 Scegli cosa includere nel documento</div>
+      <div style="font-size:13px; color:var(--text-secondary); margin-bottom:20px;">Seleziona le sezioni che vuoi esportare o stampare come PDF.</div>
 
-      const totalRec = mySubs.filter(s => s.hours_counted).length;
-      const totalEcc = mySubs.filter(s => !s.hours_counted).length;
-      const totalDebt = (_teacher?.hours_subs||0) + (_teacher?.hours_trips||0);
-      const Q = { Q1:{rec:0,ecc:0}, Q2:{rec:0,ecc:0}, Q3:{rec:0,ecc:0} };
-      mySubs.forEach(s => {
-        const m = new Date(s.date).getMonth()+1;
-        const q = [9,10,11].includes(m)?'Q1':[12,1,2].includes(m)?'Q2':'Q3';
-        if (s.hours_counted) Q[q].rec++; else Q[q].ecc++;
-      });
-      const q1t = Math.ceil(totalDebt/3);
-      const q2t = Math.ceil((totalDebt-q1t)/2);
-      const q3t = Math.max(0, totalDebt-q1t-q2t);
+      <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;">
+        ${[
+          ['cb-notifiche', '🔔 Notifiche recenti'],
+          ['cb-supplenze', '✍️ Sostituzioni assegnate e accettazioni'],
+          ['cb-orario', '📅 Il mio orario personale'],
+          ['cb-riepilogo', '📊 Riepilogo Debiti e Ore (Supplenze, Uscite, Visite Mediche)'],
+          ['cb-storico', '📋 Storico completo sostituzioni/recuperi'],
+        ].map(([id, label]) => `
+          <label style="display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--bg-secondary); border-radius:8px; cursor:pointer; border:1px solid var(--border); transition:border-color 0.2s;">
+            <input type="checkbox" id="${id}" checked style="width:18px; height:18px; cursor:pointer;">
+            <span style="font-size:14px;">${label}</span>
+          </label>`).join('')}
+      </div>
 
-      const allHours = [8,9,10,11,12,13,14,15];
-      let body = '';
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-ghost btn-sm" id="ts-sel-all-exp">✅ Seleziona Tutti</button>
+        <button class="btn btn-ghost btn-sm" id="ts-sel-none-exp">☐ Deseleziona Tutti</button>
+        <button class="btn btn-primary" id="ts-generate-doc" style="margin-left:auto;">🖨️ Genera Documento</button>
+      </div>
+    </div>
+  `;
 
-      if (sections.riepilogo) {
-        body += `<h2>📊 Riepilogo Ore</h2>
-          <table><tr><th>Totale ore da recuperare</th><th>Recuperate</th><th>Eccedenti</th></tr>
-          <tr><td>${totalDebt}</td><td>${totalRec}</td><td>${totalEcc}</td></tr></table>`;
+  container.querySelector('#ts-sel-all-exp').onclick = () => container.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked=true);
+  container.querySelector('#ts-sel-none-exp').onclick = () => container.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked=false);
+  container.querySelector('#ts-generate-doc').onclick = () => generateDocument(container);
+}
+
+async function generateDocument(container) {
+  const sections = {
+    notifiche: container.querySelector('#cb-notifiche')?.checked,
+    supplenze: container.querySelector('#cb-supplenze')?.checked,
+    orario: container.querySelector('#cb-orario')?.checked,
+    riepilogo: container.querySelector('#cb-riepilogo')?.checked,
+    storico: container.querySelector('#cb-storico')?.checked,
+  };
+
+  APP.toast('Generazione documento in corso…', 'info');
+  try {
+    const [history, schedule, absences] = await Promise.all([
+      API.get(`/substitutions/history?year_id=${_yearId}&teacher_id=${_teacherId}`),
+      API.get(`/schedule?year_id=${_yearId}`),
+      API.get(`/absences?year_id=${_yearId}`)
+    ]);
+
+    const mySubs = (history || []).filter(s => s.substitute_teacher_id == _teacherId);
+    const mySlots = (schedule || []).filter(s => s.teacher_id == _teacherId);
+    const myAbsences = (absences || []).filter(a => a.teacher_id == _teacherId && a.status !== 'rejected');
+
+    const initialSubs = parseInt(_teacher?.hours_subs) || 0;
+    const initialTrips = parseInt(_teacher?.hours_trips) || 0;
+    
+    let shortPermitHours = 0;
+    let medVisitsCount = 0;
+    let medDebtHours = 0;
+
+    myAbsences.forEach(a => {
+      const type = (a.type || '').toLowerCase();
+      const hoursCount = a.hours_count ? parseInt(a.hours_count) : (a.hours && Array.isArray(a.hours) ? a.hours.length : 1);
+      if (type === 'permesso_orario' || type === 'permit_hour' || type === 'permesso_breve') {
+        shortPermitHours += hoursCount;
+      } else if (type === 'visita_medica' || type === 'medical_visit' || type === 'visita') {
+        medVisitsCount++;
+        if (medVisitsCount > 3) medDebtHours += hoursCount;
       }
-      if (sections.trimestri) {
-        body += `<h2>📅 Ripartizione per Trimestre</h2>
-          <table><tr><th>Trimestre</th><th>Da Recuperare</th><th>Recuperate</th><th>Eccedenti</th></tr>
-          <tr><td>1° Trimestre (Set–Nov)</td><td>${q1t}</td><td>${Q.Q1.rec}</td><td>${Q.Q1.ecc}</td></tr>
-          <tr><td>2° Trimestre (Dic–Feb)</td><td>${q2t}</td><td>${Q.Q2.rec}</td><td>${Q.Q2.ecc}</td></tr>
-          <tr><td>3° Trimestre (Mar–Giu)</td><td>${q3t}</td><td>${Q.Q3.rec}</td><td>${Q.Q3.ecc}</td></tr></table>`;
-      }
-      if (sections.storico) {
-        body += `<h2>📋 Storico Sostituzioni/Recuperi</h2>
-          <table><tr><th>Giorno</th><th>Ora</th><th>Tipo</th><th>Classe</th><th>Firma</th></tr>
-          ${mySubs.map(s => `<tr>
-            <td>${fmtDate(s.date)}</td><td>${s.hour}ª</td>
-            <td>${s.hours_counted?'Recupero Ore':'Ore Eccedenti / Straordinario'}</td>
-            <td>${s.class_name||'—'}</td><td>${s.accepted?'✅':'—'}</td>
-          </tr>`).join('')}</table>`;
-      }
-      if (sections.orario) {
-        let schedHtml = `<h2>📅 Il Mio Orario</h2>
-          <table><tr><th>Ora</th>${DAYS.map(d=>`<th>${DAY_LABELS[d]}</th>`).join('')}</tr>`;
-        allHours.forEach(h => {
-          schedHtml += `<tr><td>${h-7}ª</td>`;
-          DAYS.forEach(d => {
-            const slot = mySlots.find(s=>s.day===d&&s.hour===h);
-            schedHtml += `<td>${slot?.raw_value||'—'}</td>`;
-          });
-          schedHtml += '</tr>';
-        });
-        schedHtml += '</table>';
-        body += schedHtml;
-      }
-      if (sections.supplenze) {
-        body += `<h2>✍️ Sostituzioni e Accettazioni</h2>
-          <table><tr><th>Data</th><th>Ora</th><th>Classe</th><th>Tipo</th><th>Firmata</th></tr>
-          ${mySubs.map(s=>`<tr>
-            <td>${fmtDate(s.date)}</td><td>${s.hour}ª</td><td>${s.class_name||'—'}</td>
-            <td>${s.hours_counted?'Recupero':'Eccedente'}</td><td>${s.accepted?'✅':'—'}</td>
-          </tr>`).join('')}</table>`;
-      }
+    });
 
-      if (!body) { APP.toast('Seleziona almeno una sezione.', 'warning'); return; }
+    const totalRec = mySubs.filter(s => s.hours_counted).length;
+    const totalEcc = mySubs.filter(s => !s.hours_counted).length;
+    const saldoSubs = initialSubs + shortPermitHours + medDebtHours - totalRec;
 
-      const win = window.open('', '_blank');
-      win.document.write(`<!DOCTYPE html><html><head>
-        <meta charset="UTF-8"><title>Area Docente — ${_teacher?.name||''}</title>
-        <style>
-          body {font-family: Arial, sans-serif; font-size: 11px; padding: 20px; color: #0f172a;}
-          h1 {font-size: 16px; margin-bottom: 4px;}
-          h2 {font-size: 13px; margin: 20px 0 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;}
-          .meta {color: #64748b; font-size: 11px; margin-bottom: 20px;}
-          table {width: 100%; border-collapse: collapse; margin-bottom: 12px;}
-          th {background: #f1f5f9; padding: 5px 8px; text-align: left; font-size: 10px; border: 1px solid #cbd5e1;}
-          td {padding: 5px 8px; border: 1px solid #e2e8f0; font-size: 11px;}
-          @media print { @page { margin: 1cm; } }
-        </style>
-      </head><body>
-        <h1>👤 La Mia Area Docente</h1>
-        <div class="meta">${_teacher?.name||''} — ${_teacher?.subject||''} | Generato: ${new Date().toLocaleString('it-IT')}</div>
-        ${body}
-      </body></html>`);
-      win.document.close();
-      setTimeout(() => win.print(), 400);
-    } catch(e) {
-      APP.toast('Errore: ' + e.message, 'error');
+    const allHours = [8,9,10,11,12,13,14,15];
+    let body = '';
+
+    if (sections.riepilogo) {
+      body += `<h2>📊 Riepilogo Debiti e Ore</h2>
+        <table><tr><th>Debito Iniziale Supplenze</th><th>Permessi Brevi Presi</th><th>Visite Mediche (>3)</th><th>Supplenze Recuperate</th><th>Saldo Residuo</th><th>Debito Uscite</th></tr>
+        <tr><td>${initialSubs} h</td><td>${shortPermitHours} h</td><td>${medDebtHours} h</td><td>${totalRec} h</td><td><strong>${saldoSubs} h</strong></td><td>${initialTrips} h</td></tr></table>`;
     }
-  }
+    if (sections.storico) {
+      body += `<h2>📋 Storico Sostituzioni/Recuperi</h2>
+        <table><tr><th>Giorno</th><th>Ora</th><th>Tipo</th><th>Classe</th><th>Firma</th></tr>
+        ${mySubs.map(s => `<tr>
+          <td>${fmtDate(s.date)}</td><td>${s.hour}ª</td>
+          <td>${s.hours_counted?'Recupero Ore':'Ore Eccedenti / Straordinario'}</td>
+          <td>${s.class_name||'—'}</td><td>${s.accepted?'✅':'—'}</td>
+        </tr>`).join('')}</table>`;
+    }
+    if (sections.orario) {
+      let schedHtml = `<h2>📅 Il Mio Orario</h2>
+        <table><tr><th>Ora</th>${DAYS.map(d=>`<th>${DAY_LABELS[d]}</th>`).join('')}</tr>`;
+      allHours.forEach(h => {
+        schedHtml += `<tr><td>${h-7}ª</td>`;
+        DAYS.forEach(d => {
+          const slot = mySlots.find(s=>s.day===d&&s.hour===h);
+          schedHtml += `<td>${slot?.raw_value||'—'}</td>`;
+        });
+        schedHtml += '</tr>';
+      });
+      schedHtml += '</table>';
+      body += schedHtml;
+    }
+    if (sections.supplenze) {
+      body += `<h2>✍️ Sostituzioni e Accettazioni</h2>
+        <table><tr><th>Data</th><th>Ora</th><th>Classe</th><th>Tipo</th><th>Firmata</th></tr>
+        ${mySubs.map(s=>`<tr>
+          <td>${fmtDate(s.date)}</td><td>${s.hour}ª</td><td>${s.class_name||'—'}</td>
+          <td>${s.hours_counted?'Recupero':'Eccedente'}</td><td>${s.accepted?'✅':'—'}</td>
+        </tr>`).join('')}</table>`;
+    }
 
-  // ─── AZIONI GLOBALI ─────────────────────────────────────────────────────────
+    if (!body) { APP.toast('Seleziona almeno una sezione.', 'warning'); return; }
+
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html><html><head>
+      <meta charset="UTF-8"><title>Area Docente — ${_teacher?.name||''}</title>
+      <style>
+        body {font-family: Arial, sans-serif; font-size: 11px; padding: 20px; color: #0f172a;}
+        h1 {font-size: 16px; margin-bottom: 4px;}
+        h2 {font-size: 13px; margin: 20px 0 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;}
+        .meta {color: #64748b; font-size: 11px; margin-bottom: 20px;}
+        table {width: 100%; border-collapse: collapse; margin-bottom: 12px;}
+        th {background: #f1f5f9; padding: 5px 8px; text-align: left; font-size: 10px; border: 1px solid #cbd5e1;}
+        td {padding: 5px 8px; border: 1px solid #e2e8f0; font-size: 11px;}
+        @media print { @page { margin: 1cm; } }
+      </style>
+    </head><body>
+      <h1>👤 La Mia Area Docente</h1>
+      <div class="meta">${_teacher?.name||''} — ${_teacher?.subject||''} | Generato: ${new Date().toLocaleString('it-IT')}</div>
+      ${body}
+    </body></html>`);
+    win.document.close();
+    setTimeout(() => win.print(), 400);
+  } catch(e) {
+    APP.toast('Errore: ' + e.message, 'error');
+  }
+}
+
+// ─── AZIONI GLOBALI ─────────────────────────────────────────────────────────
 
   async function markRead(e, id) {
     e.preventDefault();

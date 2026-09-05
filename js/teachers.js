@@ -364,9 +364,21 @@ var TeachersView = (() => {
             <div class="form-group"><label>Classi Assegnate</label><input type="text" id="m-classes" value="${escHtml(isEdit ? t.assigned_classes : '')}" placeholder="1A, 2B, 3C..."/></div>
           </div>
           <div class="form-group">
-            <label>Totale Ore da Recuperare</label>
-            <input type="number" id="m-total-debt" value="${isEdit ? (t.hours_subs||0) + (t.hours_trips||0) : 0}" min="0"/>
-            <small style="color:var(--text-secondary)">Le ore verranno divise equamente tra Supplenze e Uscite/Soggiorni.</small>
+            <label>Ore Settimanali Cattedra / Contratto *</label>
+            <input type="number" id="m-weekly-hours" value="${isEdit ? (t.weekly_hours || 18) : 18}" min="1" max="40"/>
+            <small style="color:var(--text-secondary)">Standard secondaria: 18h | Primaria: 24h | Oppure spezzone orario (es. 6, 9, 10, 12). Definisce il tetto annuo dei permessi brevi (Art. 16 CCNL).</small>
+          </div>
+          <div class="grid grid-cols-2 gap-12">
+            <div class="form-group">
+              <label>Debito Iniziale Supplenze (ore)</label>
+              <input type="number" id="m-hours-subs" value="${isEdit ? (t.hours_subs || 0) : 0}" min="0"/>
+              <small style="color:var(--text-secondary)">Valido per tutto l'anno scolastico.</small>
+            </div>
+            <div class="form-group">
+              <label>Debito Iniziale Uscite / Soggiorni (ore)</label>
+              <input type="number" id="m-hours-trips" value="${isEdit ? (t.hours_trips || 0) : 0}" min="0"/>
+              <small style="color:var(--text-secondary)">Valido per tutto l'anno scolastico.</small>
+            </div>
           </div>
           <div class="form-group"><label>Note</label><textarea id="m-notes">${escHtml(isEdit ? t.notes : '')}</textarea></div>
         </div>
@@ -398,15 +410,19 @@ var TeachersView = (() => {
          }
       }
 
-      const total = parseInt(ov.querySelector('#m-total-debt').value)||0;
+      const weeklyHours = parseInt(ov.querySelector('#m-weekly-hours').value) || 18;
+      const hoursSubs = parseInt(ov.querySelector('#m-hours-subs').value) || 0;
+      const hoursTrips = parseInt(ov.querySelector('#m-hours-trips').value) || 0;
+
       const payload = { 
         name: name.toUpperCase(), 
         email: ov.querySelector('#m-email').value.trim().toLowerCase(),
         type: type,
+        weekly_hours: weeklyHours,
         subject: ov.querySelector('#m-subject').value.trim().toUpperCase(),
         assigned_classes: ov.querySelector('#m-classes').value.trim().toUpperCase(),
-        hours_subs: Math.floor(total / 2), 
-        hours_trips: Math.ceil(total / 2), 
+        hours_subs: hoursSubs, 
+        hours_trips: hoursTrips, 
         is_available: true, 
         notes: ov.querySelector('#m-notes').value, 
         school_year_id: _yearId 
@@ -453,86 +469,166 @@ var TeachersView = (() => {
   async function renderRecuperi(container, state, subType = 'subs') {
     container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div> Caricamento riepilogo ${subType === 'subs' ? 'supplenze' : 'uscite/soggiorni'}...</div>`;
     try {
-      const history = await API.get(`/substitutions/history?year_id=${_yearId}&from=2000-01-01&to=2099-12-31`);
+      const [history, absences] = await Promise.all([
+        API.get(`/substitutions/history?year_id=${_yearId}&from=2000-01-01&to=2099-12-31`),
+        API.get(`/absences?year_id=${_yearId}`)
+      ]);
       
-      const statsS = {}; // Supplenze
-      const statsU = {}; // Uscite
-      
+      const teacherStats = {};
+      const now = new Date();
+
       _filtered.forEach(t => {
-        const base = (initial) => ({ name: t.name, subject: t.subject, Q1: { eff:0, rec:0 }, Q2: { eff:0, rec:0 }, Q3: { eff:0, rec:0 }, total: { eff:0, rec:0 }, initial_debt: initial });
-        statsS[t.id] = base(t.hours_subs || 0);
-        statsU[t.id] = base(t.hours_trips || 0);
+        teacherStats[t.id] = {
+          id: t.id,
+          name: t.name,
+          subject: t.subject,
+          weekly_hours: t.weekly_hours || 18,
+          initial_subs: parseInt(t.hours_subs) || 0,
+          initial_trips: parseInt(t.hours_trips) || 0,
+          short_permits_hours: 0,
+          med_requests: 0,
+          med_exempt_hours: 0,
+          med_debt_hours: 0,
+          subs_done: 0,
+          trips_done: 0,
+          expired_permits_hours: 0
+        };
       });
 
-      history.forEach(h => {
+      // Calcola assenze per docente (Permessi brevi e visite mediche)
+      const tAbsences = {};
+      (absences || []).forEach(a => {
+        if (!a.teacher_id || !teacherStats[a.teacher_id]) return;
+        if (a.status === 'rejected') return;
+        if (!tAbsences[a.teacher_id]) tAbsences[a.teacher_id] = [];
+        tAbsences[a.teacher_id].push(a);
+      });
+
+      Object.keys(tAbsences).forEach(tid => {
+        const stats = teacherStats[tid];
+        const list = tAbsences[tid].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+        
+        list.forEach(a => {
+          const type = (a.type || '').toLowerCase();
+          const hoursCount = a.hours_count ? parseInt(a.hours_count) : (a.hours && Array.isArray(a.hours) ? a.hours.length : 1);
+          
+          if (type === 'permit_hour' || type === 'permesso_breve' || type === 'permesso_ora') {
+            stats.short_permits_hours += hoursCount;
+            // Verifica scadenza 2 mesi (60 giorni)
+            if (a.date) {
+              const dAssenza = new Date(a.date);
+              const diffDays = Math.floor((now - dAssenza) / (1000 * 60 * 60 * 24));
+              if (diffDays > 60) {
+                stats.expired_permits_hours += hoursCount;
+              }
+            }
+          } else if (type === 'visita_medica' || type === 'medical_visit' || type === 'visita') {
+            stats.med_requests++;
+            if (stats.med_requests <= 3) {
+              stats.med_exempt_hours += hoursCount;
+            } else {
+              stats.med_debt_hours += hoursCount;
+              if (a.date) {
+                const dAssenza = new Date(a.date);
+                const diffDays = Math.floor((now - dAssenza) / (1000 * 60 * 60 * 24));
+                if (diffDays > 60) {
+                  stats.expired_permits_hours += hoursCount;
+                }
+              }
+            }
+          }
+        });
+      });
+
+      (history || []).forEach(h => {
         const tid = h.substitute_teacher_id;
-        if (!tid || (!statsS[tid] && !statsU[tid])) return;
-        
-        const isTrip = (h.type === 'trip' || h.notes?.toLowerCase().includes('uscita') || h.notes?.toLowerCase().includes('soggiorno')); // Simple heuristic
-        const target = isTrip ? statsU[tid] : statsS[tid];
-        if (!target) return;
-
-        const month = new Date(h.date).getMonth() + 1;
-        let q = null;
-        if ([9,10,11].includes(month)) q = 'Q1';
-        else if ([12,1,2].includes(month)) q = 'Q2';
-        else if ([3,4,5,6].includes(month)) q = 'Q3';
-
-        if (q) {
-          target[q].eff++;
-          if (h.hours_counted) target[q].rec++;
-        }
-        target.total.eff++;
-        if (h.hours_counted) target.total.rec++;
-        
-        if (h.hours_counted) {
-          target.initial_debt++;
-        }
+        if (!tid || !teacherStats[tid] || !h.hours_counted) return;
+        const isTrip = (h.type === 'trip' || h.notes?.toLowerCase().includes('uscita') || h.notes?.toLowerCase().includes('soggiorno'));
+        if (isTrip) teacherStats[tid].trips_done++;
+        else teacherStats[tid].subs_done++;
       });
 
-      const renderTableHtml = (id, title, data, totalLabel) => `
-        <div class="card mb-24" id="${id}" style="padding:0; overflow:hidden">
+      const renderSubsTable = () => `
+        <div class="card mb-24" id="rec-supplenze" style="padding:0; overflow:hidden">
           <div class="card-header" style="padding:16px 20px; background:var(--bg-secondary); border-bottom:1px solid var(--border)">
-            <div class="card-title">${title}</div>
+            <div class="card-title">📊 Recupero Ore Supplenze (Debito Iniziale & Permessi)</div>
             <div class="flex gap-8">
-              <button class="btn btn-ghost btn-sm" onclick="TeachersView.exportSection('${id}', '${title.replace(/ /g, '_')}', 'pdf')">📥 PDF</button>
-              <button class="btn btn-ghost btn-sm" onclick="TeachersView.exportSection('${id}', '${title.replace(/ /g, '_')}', 'excel')">📥 Excel</button>
+              <button class="btn btn-ghost btn-sm" onclick="TeachersView.exportSection('rec-supplenze', 'Recupero_Supplenze', 'pdf')">📥 PDF</button>
+              <button class="btn btn-ghost btn-sm" onclick="TeachersView.exportSection('rec-supplenze', 'Recupero_Supplenze', 'excel')">📥 Excel</button>
             </div>
           </div>
           <div class="table-wrapper">
             <table style="width:100%; border-collapse: collapse; font-size:12px">
               <thead>
                 <tr style="background:var(--bg-secondary)">
-                  <th rowspan="2" style="border-right: 2px solid var(--border-thick)">Docente</th>
-                  <th rowspan="2" style="border-right: 2px solid var(--border-thick)">Materia</th>
-                  <th colspan="2" style="text-align:center; border-right: 2px solid var(--border-thick)">${totalLabel}</th>
-                  <th colspan="2" style="text-align:center; border-right: 1px solid var(--border)">1° Trimestre</th>
-                  <th colspan="2" style="text-align:center; border-right: 1px solid var(--border)">2° Trimestre</th>
-                  <th colspan="2" style="text-align:center">3° Trimestre</th>
-                </tr>
-                <tr style="background:var(--bg-secondary); font-size:10px">
-                  <th style="text-align:center">Da Recuperare</th><th style="text-align:center; border-right: 2px solid var(--border-thick)">Recuperate</th>
-                  <th style="text-align:center">Da Recuperare</th><th style="text-align:center; border-right: 1px solid var(--border)">Recuperate</th>
-                  <th style="text-align:center">Da Recuperare</th><th style="text-align:center; border-right: 1px solid var(--border)">Recuperate</th>
-                  <th style="text-align:center">Da Recuperare</th><th style="text-align:center">Recuperate</th>
+                  <th style="padding:10px 14px; text-align:left;">Docente</th>
+                  <th style="text-align:left;">Materia</th>
+                  <th style="text-align:center;">Cattedra</th>
+                  <th style="text-align:center;">Debito Iniziale</th>
+                  <th style="text-align:center;">Permessi Brevi</th>
+                  <th style="text-align:center;">Visite Extra (>3)</th>
+                  <th style="text-align:center; color:var(--success-text);">Supplenze Svolte</th>
+                  <th style="text-align:center; font-weight:700;">SALDO RESIDUO</th>
+                  <th style="text-align:center;">Stato Scadenze</th>
                 </tr>
               </thead>
               <tbody>
-                ${Object.values(data).sort((a,b)=>a.name.localeCompare(b.name)).map(s => {
-                  const q1_target = Math.ceil(s.initial_debt / 3);
-                  const rem = s.initial_debt - q1_target;
-                  const q2_target = Math.ceil(rem / 2);
-                  const q3_target = Math.max(0, rem - q2_target);
-                  
+                ${Object.values(teacherStats).sort((a,b)=>a.name.localeCompare(b.name)).map(s => {
+                  const saldo = s.initial_subs + s.short_permits_hours + s.med_debt_hours - s.subs_done;
+                  const hasExpired = s.expired_permits_hours > s.subs_done;
                   return `
-                  <tr>
-                    <td style="font-weight:600; border-right: 2px solid var(--border-thick)">${escHtml(s.name)}</td>
-                    <td style="color:var(--text-secondary); border-right: 2px solid var(--border-thick)">${escHtml(s.subject||'—')}</td>
-                    <td style="text-align:center; font-weight:700">${s.initial_debt}</td>
-                    <td style="text-align:center; font-weight:700; color:var(--success-text); border-right: 2px solid var(--border-thick)">${s.total.rec}</td>
-                    <td style="text-align:center">${q1_target}</td><td style="text-align:center; color:var(--accent-hover); border-right: 1px solid var(--border)">${s.Q1.rec}</td>
-                    <td style="text-align:center">${q2_target}</td><td style="text-align:center; color:var(--accent-hover); border-right: 1px solid var(--border)">${s.Q2.rec}</td>
-                    <td style="text-align:center">${q3_target}</td><td style="text-align:center; color:var(--accent-hover)">${s.Q3.rec}</td>
+                  <tr style="border-bottom:1px solid var(--border)">
+                    <td style="padding:8px 14px; font-weight:600;">${escHtml(s.name)}</td>
+                    <td style="color:var(--text-secondary);">${escHtml(s.subject||'—')}</td>
+                    <td style="text-align:center;"><span class="badge badge-neutral">${s.weekly_hours}h</span></td>
+                    <td style="text-align:center; font-weight:600;">${s.initial_subs} h</td>
+                    <td style="text-align:center;">${s.short_permits_hours} h</td>
+                    <td style="text-align:center;">${s.med_debt_hours} h</td>
+                    <td style="text-align:center; font-weight:700; color:var(--success-text);">${s.subs_done} h</td>
+                    <td style="text-align:center; font-weight:800; font-size:13px; color:${saldo > 0 ? 'var(--warning-text, #d97706)' : 'var(--success-text, #16a34a)'}">${saldo > 0 ? saldo + ' h' : (saldo === 0 ? '0 h' : '+' + Math.abs(saldo) + ' h (Credito)')}</td>
+                    <td style="text-align:center;">
+                      ${hasExpired 
+                        ? `<span class="badge badge-danger" title="Permessi presi da oltre 60 giorni non ancora coperti">⚠️ Oltre 2 mesi</span>` 
+                        : (saldo <= 0 ? `<span class="badge badge-success">✓ In pari</span>` : `<span class="badge badge-info">🟢 In regola</span>`)}
+                    </td>
+                  </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+
+      const renderTripsTable = () => `
+        <div class="card mb-24" id="rec-uscite" style="padding:0; overflow:hidden">
+          <div class="card-header" style="padding:16px 20px; background:var(--bg-secondary); border-bottom:1px solid var(--border)">
+            <div class="card-title">🚌 Recupero Ore Uscite Didattiche / Soggiorni</div>
+            <div class="flex gap-8">
+              <button class="btn btn-ghost btn-sm" onclick="TeachersView.exportSection('rec-uscite', 'Recupero_Uscite', 'pdf')">📥 PDF</button>
+              <button class="btn btn-ghost btn-sm" onclick="TeachersView.exportSection('rec-uscite', 'Recupero_Uscite', 'excel')">📥 Excel</button>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table style="width:100%; border-collapse: collapse; font-size:12px">
+              <thead>
+                <tr style="background:var(--bg-secondary)">
+                  <th style="padding:10px 14px; text-align:left;">Docente</th>
+                  <th style="text-align:left;">Materia</th>
+                  <th style="text-align:center;">Debito Iniziale Uscite</th>
+                  <th style="text-align:center; color:var(--success-text);">Uscite/Soggiorni Svolti</th>
+                  <th style="text-align:center; font-weight:700;">SALDO RESIDUO USCITE</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Object.values(teacherStats).sort((a,b)=>a.name.localeCompare(b.name)).map(s => {
+                  const saldoU = s.initial_trips - s.trips_done;
+                  return `
+                  <tr style="border-bottom:1px solid var(--border)">
+                    <td style="padding:8px 14px; font-weight:600;">${escHtml(s.name)}</td>
+                    <td style="color:var(--text-secondary);">${escHtml(s.subject||'—')}</td>
+                    <td style="text-align:center; font-weight:600;">${s.initial_trips} h</td>
+                    <td style="text-align:center; font-weight:700; color:var(--success-text);">${s.trips_done} h</td>
+                    <td style="text-align:center; font-weight:800; font-size:13px; color:${saldoU > 0 ? '#d97706' : '#16a34a'}">${saldoU > 0 ? saldoU + ' h' : '0 h (In pari)'}</td>
                   </tr>
                   `;
                 }).join('')}
@@ -542,9 +638,7 @@ var TeachersView = (() => {
         </div>`;
 
       container.innerHTML = `
-        ${subType === 'subs' 
-          ? renderTableHtml('rec-supplenze', '📊 Recupero Ore Supplenze', statsS, 'Ore da recuperare in supplenze')
-          : renderTableHtml('rec-uscite', '🚌 Recupero Ore Uscite/Soggiorni', statsU, 'Ore da recuperare in uscite/soggiorni')}
+        ${subType === 'subs' ? renderSubsTable() : renderTripsTable()}
       `;
     } catch(e) { APP.toast(e.message, 'error'); }
   }
@@ -880,9 +974,9 @@ var TeachersView = (() => {
         </div>
         <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
           ${[
-            ['exp-anagrafica','👨‍🏫 Anagrafica docenti (nome, materia, classi, ore)'],
-            ['exp-rec-subs','📊 Recupero ore supplenze per trimestre'],
-            ['exp-rec-trips','🚌 Recupero uscite/soggiorni per trimestre'],
+            ['exp-anagrafica','👨‍🏫 Anagrafica docenti (nome, materia, cattedra, debito)'],
+            ['exp-rec-subs','📊 Recupero ore supplenze (Debito Iniziale & Permessi)'],
+            ['exp-rec-trips','🚌 Recupero uscite didattiche / soggiorni'],
             ['exp-eccedenti','⚡ Ore Eccedenti / Straordinario'],
             ['exp-storico','📋 Storico completo supplenze e recuperi'],
             ['exp-assenze','🚫 Motivi assenze per docente'],

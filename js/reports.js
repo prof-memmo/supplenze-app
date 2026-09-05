@@ -191,14 +191,34 @@ var ReportsView = (() => {
     const el = document.getElementById('rep-extra-list');
     if (!el) return;
     try {
-      const teachers = await API.get(`/teachers?year_id=${_yearId}`);
-      const history = await API.get(`/substitutions/history?year_id=${_yearId}`);
+      const [teachers, history, absences] = await Promise.all([
+        API.get(`/teachers?year_id=${_yearId}`),
+        API.get(`/substitutions/history?year_id=${_yearId}`),
+        API.get(`/absences?year_id=${_yearId}`)
+      ]);
       
       const extraList = teachers.map(t => {
         const done = history.filter(h => h.substitute_teacher_id == t.id && h.hours_counted).length;
-        const initialDebt = (t.hours_subs_initial || (t.hours_subs + done)) || 0; // Fallback logic
-        const extra = Math.max(0, done - initialDebt);
-        return { ...t, extra, done, initialDebt };
+        const initialSubs = parseInt(t.hours_subs) || 0;
+        
+        let shortPermitHours = 0;
+        let medVisitsCount = 0;
+        let medDebtHours = 0;
+
+        (absences || []).filter(a => a.teacher_id == t.id && a.status !== 'rejected').forEach(a => {
+          const type = (a.type || '').toLowerCase();
+          const hoursCount = a.hours_count ? parseInt(a.hours_count) : (a.hours && Array.isArray(a.hours) ? a.hours.length : 1);
+          if (type === 'permesso_orario' || type === 'permit_hour' || type === 'permesso_breve') {
+            shortPermitHours += hoursCount;
+          } else if (type === 'visita_medica' || type === 'medical_visit' || type === 'visita') {
+            medVisitsCount++;
+            if (medVisitsCount > 3) medDebtHours += hoursCount;
+          }
+        });
+
+        const totalDebt = initialSubs + shortPermitHours + medDebtHours;
+        const extra = Math.max(0, done - totalDebt);
+        return { ...t, extra, done, totalDebt, initialSubs };
       }).filter(t => t.extra > 0).sort((a,b) => b.extra - a.extra);
 
       el.innerHTML = extraList.length ? extraList.map(t=>`
@@ -206,7 +226,7 @@ var ReportsView = (() => {
           <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
             <span>${escHtml(t.name)}</span><span class="text-success" style="font-weight:700">+${t.extra}h Straord.</span>
           </div>
-          <div style="font-size:10px; color:var(--text-secondary); margin-bottom:4px">Totale effettuate: ${t.done} (Ore iniziali da recuperare: ${t.initialDebt})</div>
+          <div style="font-size:10px; color:var(--text-secondary); margin-bottom:4px">Totale effettuate: ${t.done}h (Debito complessivo: ${t.totalDebt}h)</div>
           <div style="background:var(--bg-hover);border-radius:4px;height:6px;overflow:hidden">
             <div style="background:var(--success-text);height:100%;width:${Math.min(100, t.extra*10)}%;border-radius:4px;transition:width .3s"></div>
           </div>
