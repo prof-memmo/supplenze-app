@@ -576,36 +576,17 @@ const APP = (() => {
     const wrap = document.getElementById('sidebar-sim-wrapper');
     if (!wrap) return;
 
-    if (!isAdmin()) {
+    if (!isAdmin() || !isSimulationMode()) {
       wrap.innerHTML = '';
       return;
     }
 
-    const simActive = isSimulationMode();
-
-    if (!simActive) {
-      wrap.innerHTML = `
-        <div style="background:var(--bg-secondary); border:1px dashed var(--border); border-radius:10px; padding:8px 10px; font-size:12px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
-          <div style="display:flex; align-items:center; gap:6px; color:var(--text-secondary); font-weight:600;">
-            <span style="font-size:14px">🧪</span>
-            <span>Modalità Test</span>
-          </div>
-          <button class="btn btn-secondary btn-sm" id="btn-toggle-sim" style="font-size:11px; padding:2px 10px; height:26px; border-radius:6px; font-weight:600;">Attiva</button>
-        </div>
-      `;
-      wrap.querySelector('#btn-toggle-sim')?.addEventListener('click', () => toggleSimulationMode(true));
-    } else {
-      wrap.innerHTML = `
-        <div style="background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.4); border-radius:10px; padding:8px 10px; font-size:12px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
-          <div style="display:flex; align-items:center; gap:6px; color:#d97706; font-weight:700;">
-            <span style="font-size:14px">🧪</span>
-            <span>Test Attivo</span>
-          </div>
-          <button class="btn btn-warning btn-sm" id="btn-toggle-sim" style="font-size:11px; padding:2px 8px; height:26px; border-radius:6px; font-weight:600; background:#d97706; color:white; border:none;" title="Disattiva e rimuovi dati di prova">Disattiva</button>
-        </div>
-      `;
-      wrap.querySelector('#btn-toggle-sim')?.addEventListener('click', () => toggleSimulationMode(false));
-    }
+    // Mostra solo il badge informativo se la modalità test è attiva
+    wrap.innerHTML = `
+      <div style="background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.4); border-radius:8px; padding:6px 10px; font-size:11px; font-weight:700; color:#d97706; display:flex; align-items:center; gap:6px; justify-content:center;">
+        <span>🧪</span> Modalità Test Attiva
+      </div>
+    `;
   }
 
   async function toggleSimulationMode(enable) {

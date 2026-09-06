@@ -12,7 +12,7 @@ var SettingsView = (() => {
     }
     
     // Available tabs based on role
-    const allTabs = ['years','classes','users','log','password'];
+    const allTabs = ['years','classes','users','log','testmode','password'];
     const visibleTabs = isAdminMaster ? allTabs : allTabs.filter(t => t !== 'log');
     
     container.innerHTML = `
@@ -20,7 +20,7 @@ var SettingsView = (() => {
       <div style="display:flex;gap:4px;margin-bottom:20px;background:var(--bg-secondary);padding:4px;border-radius:var(--radius);width:fit-content;overflow-x:auto;max-width:100%">
         ${visibleTabs.map(t=>`
           <button class="btn ${_activeTab===t?'btn-primary':'btn-ghost'} btn-sm" style="border-radius:6px; white-space:nowrap" onclick="SettingsView.setTab('${t}')" id="tab-${t}">
-            ${{years:'🗓 Anni',classes:'🏫 Classi',users:'👥 Utenti',log:'📜 Log Sistema',password:'🔐 Password'}[t]}
+            ${{years:'🗓 Anni',classes:'🏫 Classi',users:'👥 Utenti',log:'📜 Log Sistema',testmode:'🧪 Modalità Test',password:'🔐 Password'}[t]}
           </button>`).join('')}
       </div>
       <div id="settings-content"></div>`;
@@ -43,7 +43,7 @@ var SettingsView = (() => {
   function loadTab() {
     const content = document.getElementById('settings-content');
     if (!content) return;
-    const fns = { years: loadYears, classes: loadClasses, users: loadUsers, log: loadActivityLog, password: renderPasswordChange };
+    const fns = { years: loadYears, classes: loadClasses, users: loadUsers, log: loadActivityLog, testmode: loadTestMode, password: renderPasswordChange };
     (fns[_activeTab]||loadYears)(content);
   }
 
@@ -403,6 +403,62 @@ var SettingsView = (() => {
     catch(e) { APP.toast(e.message,'error'); }
   }
 
+  // ── MODALITA TEST / SIMULAZIONE ──
+  async function loadTestMode(el) {
+    const simActive = APP.isSimulationMode();
+    el.innerHTML = `
+      <div class="card" style="max-width:720px;">
+        <div class="card-header" style="justify-content:space-between; align-items:center;">
+          <div>
+            <div class="card-title">🧪 Modalità Test / Simulazione</div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">Ambiente dimostrativo per sperimentare la gestione delle sostituzioni</div>
+          </div>
+          <span class="badge ${simActive ? 'badge-warning' : 'badge-neutral'}" style="font-size:12px; padding:6px 12px; font-weight:700;">
+            ${simActive ? '● Test Attivo' : '○ Disattivata'}
+          </span>
+        </div>
+
+        <div style="padding:16px 0; font-size:13px; line-height:1.6; color:var(--text-secondary);">
+          <p style="margin-bottom:12px;">
+            La <strong>Modalità Test</strong> ti consente di provare tutte le funzioni del gestionale con uno scenario scolastico completo già pronto:
+          </p>
+          <ul style="padding-left:20px; margin-bottom:16px;">
+            <li><strong>Gestione Sostituzioni completa</strong>: Assegna docenti in compresenza, a disposizione, eccedenti e oltre 5 ore.</li>
+            <li><strong>Assenze &amp; Permessi</strong>: Registra nuove assenze rapide, permessi orari o uscite didattiche.</li>
+            <li><strong>Flussi Docenti &amp; Report</strong>: Testa l'accettazione, il rifiuto con motivazione e i report annuali per il Dirigente.</li>
+          </ul>
+
+          <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; padding:12px 16px; margin-bottom:20px;">
+            <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">Stato attuale:</div>
+            <div>${simActive ? 'Lo scenario demo (15 docenti, 15 classi, orario settimanale e assenze) è <strong>attualmente caricato</strong>.' : 'L\'anno scolastico è attualmente in <strong>modalità standard</strong> (dati reali o vuoto).'}</div>
+          </div>
+
+          <div style="display:flex; gap:12px; align-items:center;">
+            ${!simActive ? `
+              <button class="btn btn-primary btn-lg" id="btn-activate-testmode" style="font-size:13px;">
+                <span>⚡</span> Attiva Modalità Test (Carica Dati Demo)
+              </button>
+            ` : `
+              <button class="btn btn-danger btn-lg" id="btn-deactivate-testmode" style="font-size:13px;">
+                <span>🗑️</span> Disattiva Modalità Test (Rimuovi Dati Demo)
+              </button>
+            `}
+          </div>
+        </div>
+      </div>
+    `;
+
+    el.querySelector('#btn-activate-testmode')?.addEventListener('click', async () => {
+      await APP.toggleSimulationMode(true);
+      loadTestMode(el);
+    });
+
+    el.querySelector('#btn-deactivate-testmode')?.addEventListener('click', async () => {
+      await APP.toggleSimulationMode(false);
+      loadTestMode(el);
+    });
+  }
+
   // ── CAMBIO PASSWORD ──
   function renderPasswordChange() {
     const el = document.getElementById('settings-content');
@@ -426,5 +482,5 @@ var SettingsView = (() => {
     };
   }
 
-  return { render, setTab, activateYear, deleteYear, deleteClass, openUserModal, deleteUser };
+  return { render, setTab, activateYear, deleteYear, deleteClass, openUserModal, deleteUser, loadTestMode };
 })();
