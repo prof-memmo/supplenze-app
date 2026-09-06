@@ -588,66 +588,49 @@ const APP = (() => {
         <div style="background:var(--bg-secondary); border:1px dashed var(--border); border-radius:10px; padding:8px 10px; font-size:12px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
           <div style="display:flex; align-items:center; gap:6px; color:var(--text-secondary); font-weight:600;">
             <span style="font-size:14px">🧪</span>
-            <span>Simulazione</span>
+            <span>Modalità Test</span>
           </div>
-          <button class="btn btn-secondary btn-sm" id="btn-activate-sim" style="font-size:11px; padding:2px 8px; height:26px; border-radius:6px; font-weight:600;">Attiva</button>
+          <button class="btn btn-secondary btn-sm" id="btn-toggle-sim" style="font-size:11px; padding:2px 10px; height:26px; border-radius:6px; font-weight:600;">Attiva</button>
         </div>
       `;
-      wrap.querySelector('#btn-activate-sim')?.addEventListener('click', () => toggleSimulationMode(true));
+      wrap.querySelector('#btn-toggle-sim')?.addEventListener('click', () => toggleSimulationMode(true));
     } else {
       wrap.innerHTML = `
-        <div style="background:rgba(245, 158, 11, 0.08); border:1px solid rgba(245, 158, 11, 0.35); border-radius:10px; padding:8px 10px; font-size:12px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-            <span style="font-weight:700; color:#d97706; display:flex; align-items:center; gap:4px; font-size:12px;">
-              <span>🧪</span> Test Attivo
-            </span>
-            <button class="btn btn-ghost btn-sm" id="btn-deactivate-sim" style="font-size:10px; padding:2px 6px; height:20px; color:var(--text-muted); cursor:pointer;" title="Torna alla modalità normale">Disattiva</button>
+        <div style="background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.4); border-radius:10px; padding:8px 10px; font-size:12px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+          <div style="display:flex; align-items:center; gap:6px; color:#d97706; font-weight:700;">
+            <span style="font-size:14px">🧪</span>
+            <span>Test Attivo</span>
           </div>
-          <div style="display:flex; gap:4px;">
-            <button class="btn btn-warning btn-sm" id="btn-load-seed-demo" style="width:100%; font-size:11px; padding:4px 6px; height:26px; justify-content:center; background:#d97706; color:white; border:none; font-weight:600;">
-              ⚡ Popola Dati Demo
-            </button>
-          </div>
+          <button class="btn btn-warning btn-sm" id="btn-toggle-sim" style="font-size:11px; padding:2px 8px; height:26px; border-radius:6px; font-weight:600; background:#d97706; color:white; border:none;" title="Disattiva e rimuovi dati di prova">Disattiva</button>
         </div>
       `;
-      wrap.querySelector('#btn-deactivate-sim')?.addEventListener('click', () => toggleSimulationMode(false));
-      wrap.querySelector('#btn-load-seed-demo')?.addEventListener('click', async () => {
-        if (!state.yearId) {
-          toast('Seleziona prima un anno scolastico', 'warning');
-          return;
-        }
-        if (await confirm('Vuoi popolare lo scenario di simulazione (15 docenti, classi, orari e assenze) per l\'anno selezionato?')) {
-          const res = await SeedData.run(state.yearId);
-          toast(res.message, 'success');
-          if (res.testDate) {
-            localStorage.setItem('registry_preselected_date', res.testDate);
-          }
-          navigate('operational_registry');
-        }
-      });
+      wrap.querySelector('#btn-toggle-sim')?.addEventListener('click', () => toggleSimulationMode(false));
     }
   }
 
   async function toggleSimulationMode(enable) {
+    if (!state.yearId) {
+      toast('Seleziona prima un anno scolastico', 'warning');
+      return;
+    }
+
     if (enable) {
       localStorage.setItem('sg_sim_mode', 'true');
-      toast('🧪 Modalità Simulazione attivata.', 'info');
-      if (state.yearId) {
-        const classes = await API.get(`/settings/classes?year_id=${state.yearId}`);
-        if (!classes || !classes.length) {
-          const res = await SeedData.run(state.yearId);
-          toast(res.message, 'success');
-          if (res.testDate) {
-            localStorage.setItem('registry_preselected_date', res.testDate);
-          }
-        }
+      toast('🧪 Caricamento dati di test in corso...', 'info');
+      const res = await SeedData.run(state.yearId);
+      if (res.testDate) {
+        localStorage.setItem('registry_preselected_date', res.testDate);
       }
+      toast('✅ Modalità Test attivata: 15 docenti, classi e orari caricati.', 'success');
     } else {
       localStorage.removeItem('sg_sim_mode');
-      toast('Modalità Simulazione disattivata.', 'info');
+      toast('Rimozione dati di test...', 'info');
+      await SeedData.clear(state.yearId);
+      toast('Modalità Test disattivata e dati di prova rimossi.', 'info');
     }
+
     renderSimControl();
-    navigate(state.currentView);
+    navigate('operational_registry');
   }
 
   function showOnboardingPrompt() {

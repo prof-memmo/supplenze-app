@@ -147,5 +147,45 @@ const SeedData = (() => {
     };
   }
 
-  return { run };
+  async function clear(yearId) {
+    const targetYearId = Number(yearId || 1);
+    console.log('[SEED] Rimozione dati demo per anno:', targetYearId);
+
+    if (typeof firebase !== 'undefined' && firebase.firestore) {
+      try {
+        const fdb = firebase.firestore();
+        const collectionsToClear = ['teachers', 'classes', 'schedule', 'absences', 'substitutions'];
+        for (const col of collectionsToClear) {
+          const snap = await fdb.collection(col).where('school_year_id', '==', targetYearId).get();
+          if (!snap.empty) {
+            let batch = fdb.batch();
+            let count = 0;
+            for (const doc of snap.docs) {
+              batch.delete(doc.ref);
+              count++;
+              if (count >= 400) { await batch.commit(); batch = fdb.batch(); count = 0; }
+            }
+            if (count > 0) await batch.commit();
+          }
+        }
+      } catch (err) {
+        console.error('[SEED] Errore rimozione Firestore:', err);
+      }
+    }
+
+    try {
+      let localDb = {};
+      try { localDb = JSON.parse(localStorage.getItem('sg_supplenze_db')) || {}; } catch(e) {}
+      localDb.classes = (localDb.classes || []).filter(c => Number(c.school_year_id) !== targetYearId);
+      localDb.teachers = (localDb.teachers || []).filter(t => Number(t.school_year_id) !== targetYearId);
+      localDb.schedule = (localDb.schedule || []).filter(s => Number(s.school_year_id) !== targetYearId);
+      localDb.absences = (localDb.absences || []).filter(a => Number(a.school_year_id) !== targetYearId);
+      localDb.substitutions = (localDb.substitutions || []).filter(s => Number(s.school_year_id) !== targetYearId);
+      localStorage.setItem('sg_supplenze_db', JSON.stringify(localDb));
+    } catch(e) {}
+
+    return { ok: true, message: 'Dati di test rimossi con successo.' };
+  }
+
+  return { run, clear };
 })();
