@@ -460,14 +460,29 @@ var TeacherSelfServiceView = (() => {
       const history = await API.get(`/substitutions/history?year_id=${_yearId}&teacher_id=${_teacherId}`);
       const mySubs = history.filter(s => s.substitute_teacher_id == _teacherId);
       if (!mySubs.length) { list.innerHTML = '<div class="empty-state" style="padding:16px;">Nessuna sostituzione assegnata.</div>'; return; }
-      list.innerHTML = `<table class="table"><thead><tr><th>Data</th><th>Ora</th><th>Classe</th><th>Tipo</th><th>Firma</th></tr></thead><tbody>
-        ${mySubs.map(s => `<tr>
-          <td><strong>${fmtDate(s.date)}</strong></td>
-          <td>${s.hour}ª</td>
-          <td>${escHtml(s.class_name||'—')}</td>
-          <td><span class="badge ${s.hours_counted?'badge-info':'badge-warning'}">${s.hours_counted?'Recupero':'Eccedente'}</span></td>
-          <td>${!s.accepted ? `<button class="btn btn-primary btn-sm" onclick="TeacherSelfServiceView.acceptAssignment(event,${s.id})">✍️ Firma</button>` : `<span style="color:#16a34a; font-weight:bold;">✅ Firmata</span>`}</td>
-        </tr>`).join('')}
+      list.innerHTML = `<table class="table"><thead><tr><th>Data</th><th>Ora</th><th>Classe</th><th>Tipo</th><th>Firma / Risposta</th></tr></thead><tbody>
+        ${mySubs.map(s => {
+          let statusHtml = '';
+          if (s.status === 'rejected') {
+            statusHtml = `<span style="color:#ef4444; font-weight:bold; font-size:12px;">❌ Rifiutata</span>`;
+          } else if (s.accepted) {
+            statusHtml = `<span style="color:#16a34a; font-weight:bold;">✅ Firmata</span>`;
+          } else {
+            statusHtml = `
+              <div style="display:flex; gap:6px; align-items:center;">
+                <button class="btn btn-primary btn-sm" onclick="TeacherSelfServiceView.acceptAssignment(event,${s.id})">✍️ Firma</button>
+                <button class="btn btn-ghost btn-sm text-danger" style="font-size:12px;" onclick="TeacherSelfServiceView.rejectAssignment(event,${s.id})">❌ Rifiuta</button>
+              </div>
+            `;
+          }
+          return `<tr>
+            <td><strong>${fmtDate(s.date)}</strong></td>
+            <td>${s.hour}ª</td>
+            <td>${escHtml(s.class_name||'—')}</td>
+            <td><span class="badge ${s.hours_counted?'badge-info':'badge-warning'}">${s.hours_counted?'Recupero':'Eccedente'}</span></td>
+            <td>${statusHtml}</td>
+          </tr>`;
+        }).join('')}
       </tbody></table>`;
     } catch(e) { list.innerHTML = '<div class="empty-state">Errore caricamento sostituzioni.</div>'; }
   }
@@ -1060,12 +1075,44 @@ async function generateDocument(container) {
   }
 
   async function acceptAssignment(e, id) {
-    e.preventDefault();
+    if (e) e.preventDefault();
     try {
-      await API.patch(`/substitutions/${id}/accept`);
+      await API.post(`/substitutions/${id}/accept`);
       APP.toast('Sostituzione accettata con successo', 'success');
       render(document.getElementById('content-area'), APP.getState());
     } catch(e) { APP.toast(e.message, 'error'); }
+  }
+
+  async function rejectAssignment(e, id) {
+    if (e) e.preventDefault();
+    const ov = APP.modal({
+      title: '❌ Rifiuta Sostituzione',
+      body: `
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">
+          Stai per rifiutare l'assegnazione di questa supplenza. L'amministrazione riceverà la segnalazione per riaprire la copertura.
+        </p>
+        <div class="form-group">
+          <label style="font-weight:600; font-size:12px;">Motivazione del rifiuto (facoltativo)</label>
+          <textarea id="rej-reason" class="form-control" rows="2" placeholder="Es. Impegno personale improrogabile fuori servizio, visita medica..."></textarea>
+        </div>
+      `,
+      footer: `
+        <button class="btn btn-ghost" id="rej-cancel">Annulla</button>
+        <button class="btn btn-danger" id="rej-confirm">Conferma Rifiuto</button>
+      `,
+      size: 'modal-sm'
+    });
+
+    ov.querySelector('#rej-cancel').onclick = () => ov.remove();
+    ov.querySelector('#rej-confirm').onclick = async () => {
+      const reason = ov.querySelector('#rej-reason').value.trim();
+      try {
+        await API.post(`/substitutions/${id}/reject`, { reason: reason || 'Non accettata dal docente' });
+        ov.remove();
+        APP.toast('Sostituzione rifiutata', 'info');
+        render(document.getElementById('content-area'), APP.getState());
+      } catch(err) { APP.toast(err.message, 'error'); }
+    };
   }
 
   async function loadMyRequests(container) {
@@ -1079,23 +1126,77 @@ async function generateDocument(container) {
       list.innerHTML = `<table class="table" style="font-size:13px;">
         <thead><tr><th>Data</th><th>Tipo</th><th>Stato</th><th>Azione</th></tr></thead>
         <tbody>
-          ${myAbsences.map(a => `
+          ${myAbsences.map(a => {
+            const isToRegularize = a.type === 'da_regolarizzare' || a.is_regularized === false;
+            let badgeHtml = '';
+            if (isToRegularize) {
+              badgeHtml = `<span class="badge badge-warning" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">🟡 Da Regolarizzare</span>`;
+            } else {
+              badgeHtml = `<span class="badge ${a.status==='approved'?'badge-success':'badge-warning'}">${a.status==='approved'?'✅ Approvata':'⏳ In attesa'}</span>`;
+            }
+            return `
             <tr>
               <td><strong>${fmtDate(a.date)}</strong></td>
-              <td>${a.type === 'uscita_didattica' ? '🚌 Uscita' : '🚫 Assenza'}</td>
-              <td>
-                <span class="badge ${a.status==='approved'?'badge-success':'badge-warning'}">
-                  ${a.status==='approved'?'✅ Approvata':'⏳ In attesa'}
-                </span>
-              </td>
-              <td>
+              <td>${a.type === 'uscita_didattica' ? '🚌 Uscita' : (isToRegularize ? '⚡ Assenza da Dettagliare' : '🚫 Assenza')}</td>
+              <td>${badgeHtml}</td>
+              <td style="display:flex; gap:6px; align-items:center;">
+                ${isToRegularize ? `<button class="btn btn-primary btn-sm" style="font-size:11px; padding:3px 8px;" onclick="TeacherSelfServiceView.openRegularizeModal(${a.id})">✏️ Dettaglia</button>` : ''}
                 <button class="btn btn-ghost btn-sm text-danger" title="Annulla richiesta" onclick="TeacherSelfServiceView.cancelRequest(event,${a.id})">Annulla</button>
               </td>
             </tr>
-          `).join('')}
+          `;
+          }).join('')}
         </tbody>
       </table>`;
     } catch(e) { list.innerHTML = '<div class="empty-state">Errore caricamento richieste.</div>'; }
+  }
+
+  async function openRegularizeModal(absenceId) {
+    const absences = await API.get(`/absences?year_id=${_yearId}`);
+    const absence = absences.find(a => a.id == absenceId);
+    if (!absence) return;
+
+    const ov = APP.modal({
+      title: '✏️ Completa Dettagli Assenza',
+      body: `
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">
+          Seleziona la causale definitiva per l'assenza del <strong>${fmtDate(absence.date)}</strong>:
+        </p>
+        <div class="form-group">
+          <label style="font-weight:600; font-size:12px;">Tipo Assenza *</label>
+          <select id="reg-abs-type" class="form-control">
+            <option value="malattia">🤒 Malattia (Intera giornata)</option>
+            <option value="assenza_giornaliera">🚫 Permesso Giornaliero (Max 3gg/anno)</option>
+            <option value="permesso_orario">⏳ Permesso Breve (Singole ore da recuperare)</option>
+            <option value="visita_medica">🩺 Visita Medica (Da recuperare entro 2 mesi)</option>
+            <option value="formazione">📚 Formazione / Aggiornamento</option>
+            <option value="lutto">🕊️ Permesso per Lutto</option>
+            <option value="motivi_personali">👨‍👩‍👧 Motivi Personali / Familiari</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label style="font-weight:600; font-size:12px;">Note / Specifiche (facoltativo)</label>
+          <input type="text" id="reg-abs-notes" class="form-control" placeholder="Es. Visita specialistica, corso dipartimentale..." value="${escHtml(absence.reason === 'Assenza rapida da regolarizzare' ? '' : (absence.reason || ''))}">
+        </div>
+      `,
+      footer: `
+        <button class="btn btn-ghost" id="reg-cancel">Annulla</button>
+        <button class="btn btn-primary" id="reg-save">Salva Dettagli</button>
+      `,
+      size: 'modal-md'
+    });
+
+    ov.querySelector('#reg-cancel').onclick = () => ov.remove();
+    ov.querySelector('#reg-save').onclick = async () => {
+      const type = ov.querySelector('#reg-abs-type').value;
+      const notes = ov.querySelector('#reg-abs-notes').value.trim();
+      try {
+        await API.put(`/absences/${absence.id}`, { type, reason: notes, is_regularized: true });
+        ov.remove();
+        APP.toast('Assenza regolarizzata con successo', 'success');
+        render(document.getElementById('content-area'), APP.getState());
+      } catch(err) { APP.toast(err.message, 'error'); }
+    };
   }
 
   async function cancelRequest(e, id) {
@@ -1108,5 +1209,5 @@ async function generateDocument(container) {
     } catch(e) { APP.toast(e.message, 'error'); }
   }
 
-  return { render, markRead, acceptAssignment, cancelRequest };
+  return { render, markRead, acceptAssignment, rejectAssignment, openRegularizeModal, cancelRequest };
 })();

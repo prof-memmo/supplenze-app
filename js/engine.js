@@ -347,6 +347,24 @@ const Engine = (() => {
     updateAbsenceStatus: async (id, status) => {
       await db.collection('absences').doc(String(id)).update({ status });
     },
+    updateAbsence: async (id, updates) => {
+      await db.collection('absences').doc(String(id)).update({
+        ...updates,
+        is_regularized: true,
+        updated_at: new Date().toISOString()
+      });
+    },
+    updateAbsenceBatch: async (ids, updates) => {
+      const batch = db.batch();
+      ids.forEach(id => {
+        batch.update(db.collection('absences').doc(String(id)), {
+          ...updates,
+          is_regularized: true,
+          updated_at: new Date().toISOString()
+        });
+      });
+      await batch.commit();
+    },
     deleteAbsence: async (id) => {
       await db.collection('absences').doc(String(id)).delete();
     },
@@ -356,6 +374,21 @@ const Engine = (() => {
       const id = String(Date.now() + Math.random());
       await db.collection('substitutions').doc(id).set({
         ...sub, created_at: new Date().toISOString()
+      });
+    },
+    rejectSubstitution: async (id, rejectReason) => {
+      await db.collection('substitutions').doc(String(id)).update({
+        status: 'rejected',
+        accepted: false,
+        reject_reason: rejectReason || 'Rifiutata dal docente',
+        rejected_at: new Date().toISOString()
+      });
+    },
+    acceptSubstitution: async (id) => {
+      await db.collection('substitutions').doc(String(id)).update({
+        status: 'approved',
+        accepted: true,
+        accepted_at: new Date().toISOString()
       });
     },
     deleteSubstitution: async (id) => {

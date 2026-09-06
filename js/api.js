@@ -121,7 +121,8 @@ const API = (() => {
         const sp = new URLSearchParams(path.split('?')[1]);
         return Engine.getAbsences(sp.get('date'), sp.get('year_id'));
       }
-      if (path === '/absences' && method === 'POST') return await Engine.addAbsence(data, APP.getState().user?.username);
+      if (path === '/absences/batch-update' && method === 'POST') return await Engine.updateAbsenceBatch(data.ids, data.updates);
+      if (path.startsWith('/absences/') && method === 'PUT') return await Engine.updateAbsence(path.split('/')[2], data);
       if (path.startsWith('/absences/') && path.endsWith('/status') && method === 'PATCH') return await Engine.updateAbsenceStatus(path.split('/')[2], data.status);
       if (path.startsWith('/absences/') && method === 'DELETE') return await Engine.deleteAbsence(path.split('/')[2]);
 
@@ -131,6 +132,8 @@ const API = (() => {
         return Engine.getDailySubstitutions(sp.get('date'), sp.get('year_id'));
       }
       if (path === '/substitutions/assign' && method === 'POST') return await Engine.assignSubstitution(data);
+      if (path.startsWith('/substitutions/') && path.endsWith('/reject') && method === 'POST') return await Engine.rejectSubstitution(path.split('/')[2], data.reason);
+      if (path.startsWith('/substitutions/') && path.endsWith('/accept') && method === 'POST') return await Engine.acceptSubstitution(path.split('/')[2]);
       if (path.startsWith('/substitutions/') && method === 'DELETE') return await Engine.deleteSubstitution(path.split('/')[2]);
       if (path.startsWith('/substitutions/history') && method === 'GET') return Engine.getDb().substitutions || [];
       

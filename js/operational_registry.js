@@ -155,8 +155,9 @@ var OperationalRegistryView = (() => {
       const presentCount = allTeachers.filter(t => !absentTeacherIds.has(t.id)).length;
       const absentCount = absentTeacherIds.size;
       const slots = daily.slots || [];
-      const uncovered = slots.filter(s => !s.existing_substitutions?.length).length;
-      const covered = slots.filter(s => s.existing_substitutions?.length > 0).length;
+      const isCovered = s => s.existing_substitutions?.some(sub => sub.substitute_teacher_id && sub.status !== 'rejected');
+      const uncovered = slots.filter(s => !isCovered(s)).length;
+      const covered = slots.filter(s => isCovered(s)).length;
 
       const statsBar = container.querySelector('#reg-stats-bar');
       if (statsBar) {
@@ -369,6 +370,12 @@ var OperationalRegistryView = (() => {
 
   function renderAccepted(existing) {
     if (!existing || existing.length === 0) return '';
+    const hasRejected = existing.some(e => e.status === 'rejected');
+    if (hasRejected) {
+      const rej = existing.find(e => e.status === 'rejected');
+      const reasonTip = rej?.reject_reason ? `Motivo: ${escHtml(rej.reject_reason)}` : 'Rifiutata dal docente';
+      return `<div style="text-align:center; color: #ef4444; font-weight:bold; font-size:12px; cursor:help;" title="${reasonTip}">❌ Rifiutata</div>`;
+    }
     const allAccepted = existing.every(e => e.accepted);
     if (allAccepted) {
       return `<div style="text-align:center; color: #16a34a; font-weight:bold; font-size:14px;">✔</div>`;
@@ -421,9 +428,17 @@ var OperationalRegistryView = (() => {
       `<option value="${h}">${h-7}ª ora (${h}:00)</option>`).join('');
 
     const body = `
+      <div style="padding:10px 14px; background:rgba(99,102,241,0.08); border-radius:10px; border-left:4px solid var(--accent); font-size:12px; color:var(--text-secondary); margin-bottom:16px;">
+        💡 <strong>Modalità Rapida o Dettagliata</strong>: Puoi inserire un'assenza rapida da regolarizzare in seguito, oppure scegliere subito la tipologia specifica (Uscite, Ferie, Permessi, ecc.). È possibile selezionare più docenti contemporaneamente.
+      </div>
+
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px;">
-        <label id="tipo-giornaliero-lbl" style="display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:10px; cursor:pointer; border:2px solid var(--accent); background:var(--accent-light);">
-          <input type="radio" name="abs-tipo" id="tipo-giornaliero" value="assenza_giornaliera" checked style="width:16px;height:16px;">
+        <label id="tipo-rapido-lbl" style="display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:10px; cursor:pointer; border:2px solid var(--accent); background:var(--accent-light);">
+          <input type="radio" name="abs-tipo" id="tipo-rapido" value="da_regolarizzare" checked style="width:16px;height:16px;">
+          <div><div style="font-weight:700; font-size:13px;">⚡ Assenza Rapida</div><div style="font-size:11px; color:var(--text-secondary);">Da regolarizzare dopo (Giorno intero)</div></div>
+        </label>
+        <label id="tipo-giornaliero-lbl" style="display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
+          <input type="radio" name="abs-tipo" id="tipo-giornaliero" value="assenza_giornaliera" style="width:16px;height:16px;">
           <div><div style="font-weight:700; font-size:13px;">🚫 Permesso Giornaliero</div><div style="font-size:11px; color:var(--text-secondary);">Giorno intero</div></div>
         </label>
         <label id="tipo-orario-lbl" style="display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
@@ -458,7 +473,7 @@ var OperationalRegistryView = (() => {
           <input type="radio" name="abs-tipo" id="tipo-sindacali" value="permessi_sindacali" style="width:16px;height:16px;">
           <div><div style="font-weight:700; font-size:12px;">📢 Permesso Sindacale</div><div style="font-size:10px; color:var(--text-secondary);">fino a 12 giorni/anno</div></div>
         </label>
-        <label id="tipo-assemblea-lbl" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary);">
+        <label id="tipo-assemblea-lbl" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; cursor:pointer; border:2px solid var(--border); background:var(--bg-secondary); grid-column:span 2;">
           <input type="radio" name="abs-tipo" id="tipo-assemblea" value="assemblea" style="width:16px;height:16px;">
           <div><div style="font-weight:700; font-size:12px;">👥 Assemblea</div><div style="font-size:10px; color:var(--text-secondary);">fino a 10 ore annue</div></div>
         </label>
@@ -490,16 +505,19 @@ var OperationalRegistryView = (() => {
         </div>
       </div>
 
-      <div id="section-ferie" style="display:none;">
-          <!-- Section removed per user request: Admin don't need to specify hours/subs here -->
-      </div>
+      <div id="section-ferie" style="display:none;"></div>
 
-      <div id="section-hours" style="display:${fixedHour?'block':'none'}">
-        <div class="grid grid-cols-2 gap-12">
-          <div class="form-group"><label>Dalla ${fixedHour?'':''}ora</label>
-            <select id="m-abs-hour-start" class="form-control">${hourOptions}</select></div>
-          <div class="form-group"><label>Alla ora</label>
-            <select id="m-abs-hour-end" class="form-control"><option value="">-- Solo questa --</option>${hourOptions}</select></div>
+      <div id="section-hours" style="display:${fixedHour?'block':'none'}; margin-bottom:16px; padding:12px; background:var(--bg-secondary); border-radius:10px; border:1px solid var(--border);">
+        <div style="font-weight:700; font-size:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+          <span>⏰ Seleziona Ore di Assenza:</span>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-select-all-hours" style="font-size:11px; padding:2px 8px;">Tutte le ore</button>
+        </div>
+        <div id="hours-checkboxes-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:8px;">
+          <!-- Caricato dinamicamente in base all'orario del docente -->
+        </div>
+        <div class="grid grid-cols-2 gap-12" id="hours-fallback-selects" style="margin-top:10px; display:none;">
+          <div class="form-group" style="margin:0"><label style="font-size:11px">Dalla ora</label><select id="m-abs-hour-start" class="form-control" style="font-size:12px">${hourOptions}</select></div>
+          <div class="form-group" style="margin:0"><label style="font-size:11px">Alla ora</label><select id="m-abs-hour-end" class="form-control" style="font-size:12px"><option value="">-- Solo questa --</option>${hourOptions}</select></div>
         </div>
       </div>
 
@@ -508,7 +526,7 @@ var OperationalRegistryView = (() => {
         <div class="form-group"><label>Al giorno</label><input type="date" id="m-abs-end" class="form-control" value="${_currentDate}" min="${_currentDate}"></div>
       </div>
 
-      <div class="form-group" id="m-abs-reason-wrapper"><label>Motivazione (facoltativo)</label><textarea id="m-abs-reason" class="form-control" rows="2" placeholder="Es. Motivi personali, visita medica..."></textarea></div>
+      <div class="form-group" id="m-abs-reason-wrapper"><label>Motivazione / Note (facoltativo)</label><textarea id="m-abs-reason" class="form-control" rows="2" placeholder="Es. Motivi personali, visita medica, da regolarizzare..."></textarea></div>
     `;
 
     const ov = APP.modal({
@@ -518,6 +536,7 @@ var OperationalRegistryView = (() => {
       footer: `<button class="btn btn-ghost" id="m-abs-cancel">Annulla</button><button class="btn btn-primary" id="m-abs-save">✅ Salva</button>`
     });
 
+    const tipoRapido = ov.querySelector('#tipo-rapido');
     const tipoGiornaliero = ov.querySelector('#tipo-giornaliero');
     const tipoOrario = ov.querySelector('#tipo-orario');
     const tipoUscita = ov.querySelector('#tipo-uscita');
@@ -529,6 +548,7 @@ var OperationalRegistryView = (() => {
     const tipoSindacali = ov.querySelector('#tipo-sindacali');
     const tipoAssemblea = ov.querySelector('#tipo-assemblea');
 
+    const rapLbl = ov.querySelector('#tipo-rapido-lbl');
     const gioLbl = ov.querySelector('#tipo-giornaliero-lbl');
     const oraLbl = ov.querySelector('#tipo-orario-lbl');
     const uscLbl = ov.querySelector('#tipo-uscita-lbl');
@@ -540,7 +560,62 @@ var OperationalRegistryView = (() => {
     const sinLbl = ov.querySelector('#tipo-sindacali-lbl');
     const assLbl = ov.querySelector('#tipo-assemblea-lbl');
 
+    const updateHoursGrid = async () => {
+      const grid = ov.querySelector('#hours-checkboxes-grid');
+      const fallback = ov.querySelector('#hours-fallback-selects');
+      if (!grid) return;
+
+      const ts = ov.querySelector('#m-abs-teacher')?.tomselect;
+      const tIds = ts ? ts.getValue() : [];
+      const dateVal = ov.querySelector('#m-abs-start')?.value || _currentDate;
+      const dayNames = {0:'DOMENICA',1:'LUNEDI',2:'MARTEDI',3:'MERCOLEDI',4:'GIOVEDI',5:'VENERDI',6:'SABATO'};
+      const dayName = dayNames[new Date(dateVal + 'T12:00:00').getDay()];
+
+      if (!tIds || tIds.length === 0 || tIds.length > 1) {
+        // Multipli o nessuno: mostra ore generiche
+        fallback.style.display = 'grid';
+        grid.innerHTML = '';
+        return;
+      }
+
+      fallback.style.display = 'none';
+      const teacherId = tIds[0];
+      const allSchedule = Engine.getSchedule ? Engine.getSchedule(yearId, teacherId, dayName) : [];
+      const classesList = classes || [];
+
+      if (!allSchedule.length) {
+        grid.innerHTML = `<div style="grid-column:1/-1; font-size:11px; color:var(--text-muted); font-style:italic;">Nessuna ora programmata per ${dayName}. Usa i selettori sottostanti:</div>`;
+        fallback.style.display = 'grid';
+        return;
+      }
+
+      const hoursHtml = allSchedule.map(s => {
+        const h = s.hour;
+        const cls = classesList.find(c => c.id == s.class_id);
+        const clsName = cls ? cls.name : (s.slot_type === 'disponibile' ? 'DISP.' : (s.slot_type === 'ricevimento' ? 'RIC.' : '—'));
+        const isChecked = fixedHour ? (h === fixedHour) : true;
+        return `
+          <label style="display:flex; align-items:center; gap:8px; padding:6px 10px; background:var(--bg-primary); border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:12px;">
+            <input type="checkbox" class="m-hour-check" value="${h}" ${isChecked ? 'checked' : ''} style="width:15px; height:15px;">
+            <div>
+              <strong>${h-7}ª ora</strong> <span style="font-size:10px; color:var(--text-secondary)">(${h}:00)</span>
+              <div style="font-size:11px; color:var(--accent); font-weight:600;">${clsName}</div>
+            </div>
+          </label>
+        `;
+      }).join('');
+
+      grid.innerHTML = hoursHtml;
+    };
+
+    ov.querySelector('#btn-select-all-hours')?.addEventListener('click', () => {
+      const checks = ov.querySelectorAll('.m-hour-check');
+      const anyUnchecked = Array.from(checks).some(c => !c.checked);
+      checks.forEach(c => c.checked = anyUnchecked);
+    });
+
     const updateTipo = () => {
+      const isRap = tipoRapido.checked;
       const isGio = tipoGiornaliero.checked;
       const isOra = tipoOrario.checked;
       const isUsc = tipoUscita.checked;
@@ -552,6 +627,8 @@ var OperationalRegistryView = (() => {
       const isSin = tipoSindacali.checked;
       const isAss = tipoAssemblea.checked;
       
+      rapLbl.style.borderColor = isRap ? 'var(--accent)' : 'var(--border)';
+      rapLbl.style.background  = isRap ? 'var(--accent-light)' : 'var(--bg-secondary)';
       gioLbl.style.borderColor = isGio ? 'var(--accent)' : 'var(--border)';
       gioLbl.style.background  = isGio ? 'var(--accent-light)' : 'var(--bg-secondary)';
       oraLbl.style.borderColor = isOra ? 'var(--accent)' : 'var(--border)';
@@ -572,6 +649,29 @@ var OperationalRegistryView = (() => {
       sinLbl.style.background  = isSin ? 'var(--accent-light)' : 'var(--bg-secondary)';
       assLbl.style.borderColor = isAss ? 'var(--accent)' : 'var(--border)';
       assLbl.style.background  = isAss ? 'var(--accent-light)' : 'var(--bg-secondary)';
+
+      ov.querySelector('#section-generica').style.display = isUsc ? 'none' : 'block';
+      ov.querySelector('#section-uscita').style.display   = isUsc ? 'block' : 'none';
+      ov.querySelector('#section-ferie').style.display    = 'none';
+      ov.querySelector('#section-hours').style.display    = isOra ? 'block' : 'none';
+
+      if (isOra) updateHoursGrid();
+
+      const hideReason = isFer || isFor || isCon || isSin || isAss || isUsc || isMat;
+      ov.querySelector('#m-abs-reason-wrapper').style.display = hideReason ? 'none' : 'block';
+    };
+
+    tipoRapido.onchange = updateTipo;
+    tipoGiornaliero.onchange = updateTipo;
+    tipoOrario.onchange = updateTipo;
+    tipoUscita.onchange = updateTipo;
+    tipoFerie.onchange = updateTipo;
+    tipoFormazione.onchange = updateTipo;
+    tipoConcorsi.onchange = updateTipo;
+    tipoMatrimonio.onchange = updateTipo;
+    tipoLutto.onchange = updateTipo;
+    tipoSindacali.onchange = updateTipo;
+    tipoAssemblea.onchange = updateTipo;
 
       ov.querySelector('#section-generica').style.display = isUsc ? 'none' : 'block';
       ov.querySelector('#section-uscita').style.display   = isUsc ? 'block' : 'none';
@@ -720,14 +820,28 @@ var OperationalRegistryView = (() => {
 
           tIds = await Promise.all(tRaw.map(v => ensureTeacher(v)));
           
+          let selectedHours = [];
+          if (tipoOrario.checked) {
+            const checkedBoxes = Array.from(ov.querySelectorAll('.m-hour-check:checked')).map(c => parseInt(c.value));
+            if (checkedBoxes.length > 0) {
+              selectedHours = checkedBoxes;
+            } else if (hours.length > 0) {
+              selectedHours = hours;
+            }
+          }
+
+          const isRapido = tipoRapido.checked;
+          const absType = isRapido ? 'da_regolarizzare' : (isFerie ? 'ferie' : (tipoFormazione.checked ? 'formazione' : (tipoConcorsi.checked ? 'concorsi_esami' : (tipoMatrimonio.checked ? 'matrimonio' : (tipoLutto.checked ? 'lutto' : (tipoSindacali.checked ? 'permessi_sindacali' : (tipoAssemblea.checked ? 'assemblea' : (tipoOrario.checked ? 'permesso_orario' : 'assenza_giornaliera'))))))));
+          
           const payload = {
             teacher_id: tIds,
             school_year_id: state.yearId,
             date: dateStart,
             date_end: dateEnd !== dateStart ? dateEnd : null,
-            hours: hours.length ? hours : null,
-            type: isFerie ? 'ferie' : (tipoFormazione.checked ? 'formazione' : (tipoConcorsi.checked ? 'concorsi_esami' : (tipoMatrimonio.checked ? 'matrimonio' : (tipoLutto.checked ? 'lutto' : (tipoSindacali.checked ? 'permessi_sindacali' : (tipoAssemblea.checked ? 'assemblea' : (tipoOrario.checked ? 'permesso_orario' : 'assenza_giornaliera'))))))),
-            reason,
+            hours: selectedHours.length ? selectedHours : null,
+            type: absType,
+            reason: reason || (isRapido ? 'Assenza rapida da regolarizzare' : ''),
+            is_regularized: !isRapido,
             status: 'approved',
             created_by: APP.getState().user?.id
           };
@@ -741,7 +855,7 @@ var OperationalRegistryView = (() => {
           }
 
           await API.post('/absences', payload);
-          APP.toast(isFerie ? 'Record ferie creato (sostituzioni programmate)' : 'Assenza registrata', 'success');
+          APP.toast(isRapido ? '⚡ Assenza rapida registrata (da regolarizzare)' : (isFerie ? 'Record ferie creato' : 'Assenza registrata'), 'success');
         }
         ov.remove(); cb();
       } catch(e) { APP.toast(e.message, 'error'); }

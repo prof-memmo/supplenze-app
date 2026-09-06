@@ -491,6 +491,7 @@ var TeachersView = (() => {
           med_debt_hours: 0,
           subs_done: 0,
           trips_done: 0,
+          rejected_subs_count: 0,
           expired_permits_hours: 0
         };
       });
@@ -531,7 +532,12 @@ var TeachersView = (() => {
 
       (history || []).forEach(h => {
         const tid = h.substitute_teacher_id;
-        if (!tid || !teacherStats[tid] || !h.hours_counted) return;
+        if (!tid || !teacherStats[tid]) return;
+        if (h.status === 'rejected') {
+          teacherStats[tid].rejected_subs_count++;
+          return;
+        }
+        if (!h.hours_counted) return;
         const isTrip = (h.type === 'trip' || h.notes?.toLowerCase().includes('uscita') || h.notes?.toLowerCase().includes('soggiorno'));
         if (isTrip) teacherStats[tid].trips_done++;
         else teacherStats[tid].subs_done++;
@@ -557,6 +563,7 @@ var TeachersView = (() => {
                   <th style="text-align:center;">Permessi Brevi</th>
                   <th style="text-align:center;">Visite Mediche</th>
                   <th style="text-align:center; color:var(--success-text);">Supplenze Svolte</th>
+                  <th style="text-align:center; color:var(--danger-text, #ef4444);">Rifiuti</th>
                   <th style="text-align:center; font-weight:700;">SALDO RESIDUO</th>
                   <th style="text-align:center;">Stato Scadenze</th>
                 </tr>
@@ -574,6 +581,7 @@ var TeachersView = (() => {
                     <td style="text-align:center;">${s.short_permits_hours} h</td>
                     <td style="text-align:center;">${s.med_debt_hours} h <span style="font-size:10px; color:var(--text-secondary)">(${s.med_requests} req)</span></td>
                     <td style="text-align:center; font-weight:700; color:var(--success-text);">${s.subs_done} h</td>
+                    <td style="text-align:center; font-weight:600; color:${s.rejected_subs_count > 0 ? '#ef4444' : 'var(--text-muted)'};">${s.rejected_subs_count > 0 ? `${s.rejected_subs_count} ❌` : '—'}</td>
                     <td style="text-align:center; font-weight:800; font-size:13px; color:${saldo > 0 ? 'var(--warning-text, #d97706)' : 'var(--success-text, #16a34a)'}">${saldo > 0 ? saldo + ' h' : (saldo === 0 ? '0 h' : '+' + Math.abs(saldo) + ' h (Credito)')}</td>
                     <td style="text-align:center;">
                       ${hasExpired 

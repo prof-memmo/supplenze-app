@@ -132,7 +132,7 @@ var ReportsView = (() => {
     }
 
     wrap.innerHTML = `<div style="overflow-x:auto"><table>
-      <thead><tr><th>Data</th><th>Giorno</th><th>Ora</th><th>Classe</th><th>Titolare</th><th>Supplente</th><th>Ore Rec.</th><th>Azioni</th></tr></thead>
+      <thead><tr><th>Data</th><th>Giorno</th><th>Ora</th><th>Classe</th><th>Titolare</th><th>Supplente</th><th>Stato</th><th>Azioni</th></tr></thead>
       <tbody>${filtered.map(h=>`
         <tr>
           <td>${fmtDate(h.date)}</td>
@@ -141,7 +141,11 @@ var ReportsView = (() => {
           <td><strong>${escHtml(h.class_name||'—')}</strong></td>
           <td>${escHtml(h.absent_teacher_name||'—')}</td>
           <td>${h.substitute_teacher_name?`<strong>${escHtml(h.substitute_teacher_name)}</strong>`:'<span class="badge badge-danger">Non coperta</span>'}</td>
-          <td style="text-align:center">${h.hours_counted?'<span class="badge badge-success">✓</span>':'—'}</td>
+          <td style="text-align:center">
+            ${h.status === 'rejected' 
+              ? `<span class="badge badge-danger" title="${escHtml(h.reject_reason || 'Rifiutata')}">❌ Rifiutata</span>` 
+              : (h.hours_counted ? '<span class="badge badge-success">✓ Recupero</span>' : '<span class="badge badge-neutral">Eccedente</span>')}
+          </td>
           <td style="text-align:center">
             <button class="btn btn-danger btn-sm" style="padding: 4px 8px; font-size: 11px;" onclick="ReportsView.deleteHist('${h.id}')" title="Elimina e ripristina ore">Elimina</button>
           </td>
