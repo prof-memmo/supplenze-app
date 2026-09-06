@@ -125,21 +125,25 @@ var SettingsView = (() => {
           </div>
           <div class="table-wrapper"><table>
             <thead><tr><th>Anno</th><th>Inizio</th><th>Fine</th><th>Stato</th><th>Azioni</th></tr></thead>
-            <tbody>${years.map(y=>`
+            <tbody>${years.map(y=>{
+              const isTest = (y.name?.includes('2025/26') || y.name?.includes('25/26'));
+              const label = isTest && !y.name?.includes('Test') ? `${escHtml(y.name)} <span class="badge badge-warning" style="font-size:10px; margin-left:6px; background:#fef3c7; color:#92400e;">🧪 Dati Test</span>` : `<strong>${escHtml(y.name)}</strong>`;
+              return `
               <tr>
-                <td><strong>${escHtml(y.name)}</strong></td>
+                <td>${label}</td>
                 <td>${fmtDate(y.start_date)}</td><td>${fmtDate(y.end_date)}</td>
                 <td>${y.is_active?'<span class="badge badge-success">✓ Attivo</span>':'<span class="badge badge-neutral">Inattivo</span>'}</td>
                 <td style="display:flex;gap:4px">
                   ${!y.is_active?`<button class="btn btn-success btn-sm" onclick="SettingsView.activateYear(${y.id})">Attiva</button>`:''}
                   <button class="btn btn-ghost btn-sm" onclick="SettingsView.deleteYear(${y.id})">🗑️</button>
                 </td>
-              </tr>`).join('')}
+              </tr>`;
+            }).join('')}
             </tbody></table></div>
         </div>`;
       el.querySelector('#add-year-btn').onclick = openYearModal;
       el.querySelector('#seed-test-btn')?.addEventListener('click', async () => {
-        if (await APP.confirm('Caricare i dati di test complessi per il 2025/26?')) {
+        if (await APP.confirm('Caricare i 15 docenti, classi e orari di test per il 2025/26 (Dati Test)?')) {
           const res = await SeedData.run(yearId);
           APP.toast(res.message, 'success');
           loadTab();

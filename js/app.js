@@ -542,8 +542,11 @@ const APP = (() => {
           sel.classList.add('pulse-attention');
           if (isAdmin()) setTimeout(() => showOnboardingPrompt(), 500);
         } else {
-          const options = state.years.map(y => `<option value="${y.id}" ${state.yearId === String(y.id) ? 'selected' : ''}>${y.name}</option>`);
-          // Aggiungiamo un'opzione vuota se non c'è una selezione attiva per forzare la scelta
+          const options = state.years.map(y => {
+            const isTest = (y.name?.includes('2025/26') || y.name?.includes('25/26'));
+            const label = isTest && !y.name?.includes('Test') ? `${y.name} (🧪 Test)` : y.name;
+            return `<option value="${y.id}" ${state.yearId === String(y.id) ? 'selected' : ''}>${label}</option>`;
+          });
           if (!state.yearId) {
             options.unshift('<option value="" selected disabled>— Seleziona Anno —</option>');
           }
