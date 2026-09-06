@@ -673,26 +673,6 @@ var OperationalRegistryView = (() => {
     tipoSindacali.onchange = updateTipo;
     tipoAssemblea.onchange = updateTipo;
 
-      ov.querySelector('#section-generica').style.display = isUsc ? 'none' : 'block';
-      ov.querySelector('#section-uscita').style.display   = isUsc ? 'block' : 'none';
-      ov.querySelector('#section-ferie').style.display    = 'none'; // Always hidden in registry
-      ov.querySelector('#section-hours').style.display    = isOra ? 'block' : 'none'; // Only for hourly leave (not vacation)
-
-      const hideReason = isFer || isFor || isCon || isSin || isAss || isUsc || isMat;
-      ov.querySelector('#m-abs-reason-wrapper').style.display = hideReason ? 'none' : 'block';
-    };
-
-    tipoGiornaliero.onchange = updateTipo;
-    tipoOrario.onchange = updateTipo;
-    tipoUscita.onchange = updateTipo;
-    tipoFerie.onchange = updateTipo;
-    tipoFormazione.onchange = updateTipo;
-    tipoConcorsi.onchange = updateTipo;
-    tipoMatrimonio.onchange = updateTipo;
-    tipoLutto.onchange = updateTipo;
-    tipoSindacali.onchange = updateTipo;
-    tipoAssemblea.onchange = updateTipo;
-
     if (fixedHour) ov.querySelector('#m-abs-hour-start').value = fixedHour;
     
     // Sincronizzazione Date

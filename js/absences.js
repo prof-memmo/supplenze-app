@@ -1,3 +1,7 @@
+// ══════════════════════════════════
+// ABSENCES VIEW — Assenze & Uscite Didattiche
+// ══════════════════════════════════
+var AbsencesView = (() => {
   let _date, _yearId, _teachers=[], _classes=[], _activeTab='daily';
 
   async function render(container, state) {
