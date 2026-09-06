@@ -48,60 +48,135 @@ var SettingsView = (() => {
   }
 
   async function loadActivityLog(el) {
-    el.innerHTML='<div class="loading-overlay"><div class="spinner"></div></div>';
+    el.innerHTML='<div class="loading-overlay"><div class="spinner"></div> Caricamento log...</div>';
     try {
-      const logs = await API.get('/settings/log');
+      const logs = (await API.get('/settings/log')) || [];
+      
       el.innerHTML = `
         <div class="card">
-          <div class="card-header">
-            <div class="card-title">📜 Log Attività Recenti</div>
-            <button class="btn btn-danger btn-sm" onclick="SettingsView.openClearHistoryModal()">🗑️ Svuota Storico Sostituzioni</button>
+          <div class="card-header" style="flex-wrap:wrap; gap:12px; justify-content:space-between; align-items:center;">
+            <div>
+              <div class="card-title">📜 Log Attività &amp; Accessi</div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">Monitoraggio in tempo reale degli accessi e delle operazioni degli utenti</div>
+            </div>
+            <div id="log-count-badge" class="badge badge-neutral" style="font-size:11px;">
+              ${logs.length} eventi
+            </div>
           </div>
-          <div class="table-wrapper"><table>
-            <thead><tr><th>Data/Ora</th><th>Utente</th><th>Azione</th><th>Dettaglio</th></tr></thead>
-            <tbody>${logs.map(l=>`
-              <tr>
-                <td style="font-size:11px; white-space:nowrap">${new Date(l.timestamp).toLocaleString('it-IT')}</td>
-                <td><strong>${escHtml(l.username)}</strong></td>
-                <td><span class="badge badge-neutral" style="font-size:10px">${l.action}</span></td>
-                <td style="font-size:12px; color:var(--text-secondary)">${escHtml(l.detail)}</td>
-              </tr>`).join('')}
-              ${!logs.length?'<tr><td colspan="4" style="text-align:center;padding:20px">Nessun log presente</td></tr>':''}
-            </tbody></table></div>
-        </div>`;
-    } catch(e) { APP.toast(e.message,'error'); }
-  }
+          
+          <div style="padding:14px 16px; background:var(--bg-secondary); border-bottom:1px solid var(--border); display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <div style="flex:1; min-width:220px;">
+              <input type="text" id="log-search-input" class="form-control" placeholder="🔍 Cerca per docente, azione o dettaglio..." style="font-size:12px; height:36px;">
+            </div>
+            <div style="min-width:160px;">
+              <select id="log-filter-type" class="form-control" style="font-size:12px; height:36px;">
+                <option value="all">Tutte le azioni</option>
+                <option value="login">🔑 Solo Accessi / Login</option>
+                <option value="sub">📋 Sostituzioni &amp; Assegnazioni</option>
+                <option value="absence">🚫 Assenze &amp; Uscite</option>
+                <option value="system">⚙️ Modifiche Sistema</option>
+              </select>
+            </div>
+            <div style="min-width:140px;">
+              <select id="log-filter-date" class="form-control" style="font-size:12px; height:36px;">
+                <option value="all">Tutte le date</option>
+                <option value="today">Oggi</option>
+                <option value="7days">Ultimi 7 giorni</option>
+                <option value="30days">Ultimi 30 giorni</option>
+              </select>
+            </div>
+          </div>
 
-  function openClearHistoryModal() {
-    const ov = APP.modal({
-      title: '⚠️ Svuota Storico Sostituzioni',
-      body: `
-        <div style="background:var(--danger-bg); padding:16px; border-radius:8px; margin-bottom:16px; border:1px solid var(--danger-text)">
-          <h4 style="color:var(--danger-text); margin-bottom:8px">Conseguenze di questa azione:</h4>
-          <ul style="color:var(--danger-text); padding-left:20px; line-height:1.5">
-            <li><strong>Tutte le sostituzioni, assenze e uscite</strong> registrate fino ad oggi verranno eliminate definitivamente.</li>
-            <li>Le ore di recupero scalate da ciascun docente verranno <strong>automaticamente rimborsate</strong> (i debiti si ripristineranno ai valori iniziali).</li>
-            <li><strong>Tutte le notifiche e i log di sistema</strong> verranno cancellati per pulire l'area log.</li>
-            <li>L'operazione è di natura sistemica e irreversibile.</li>
-          </ul>
-        </div>
-        <p>Sei sicuro di voler effettuare un <strong>Reset Operativo Totale</strong> di sistema?</p>
-      `,
-      footer: `<button class="btn btn-secondary" id="ch-cancel">Annulla</button><button class="btn btn-danger" id="ch-save">Conferma e Svuota</button>`
-    });
-    
-    ov.querySelector('#ch-cancel').onclick = () => ov.remove();
-    ov.querySelector('#ch-save').onclick = async () => {
-      try {
-        await API.post('/settings/clear-history');
-        ov.remove();
-        APP.toast('Storico sostituzioni svuotato. Tutti i docenti sono stati rimborsati.', 'success');
-        // Refresh log tab
-        setTab('log');
-      } catch(e) {
-        APP.toast('Errore: ' + e.message, 'error');
-      }
-    };
+          <div class="table-wrapper" style="max-height:480px; overflow-y:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+              <thead style="position:sticky; top:0; background:var(--bg-secondary); z-index:10; border-bottom:2px solid var(--border);">
+                <tr>
+                  <th style="padding:10px 14px; text-align:left; width:150px;">Data/Ora</th>
+                  <th style="text-align:left; width:160px;">Utente</th>
+                  <th style="text-align:left; width:140px;">Azione</th>
+                  <th style="text-align:left;">Dettaglio</th>
+                </tr>
+              </thead>
+              <tbody id="log-table-body">
+                <!-- popolato dinamicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+
+      const searchInput = el.querySelector('#log-search-input');
+      const filterType = el.querySelector('#log-filter-type');
+      const filterDate = el.querySelector('#log-filter-date');
+      const tableBody = el.querySelector('#log-table-body');
+      const countBadge = el.querySelector('#log-count-badge');
+
+      const renderRows = () => {
+        const query = (searchInput.value || '').toLowerCase().trim();
+        const typeVal = filterType.value;
+        const dateVal = filterDate.value;
+        const now = new Date();
+
+        const filtered = logs.filter(l => {
+          // Filtro testo
+          const matchText = !query || 
+            (l.username || '').toLowerCase().includes(query) ||
+            (l.action || '').toLowerCase().includes(query) ||
+            (l.detail || '').toLowerCase().includes(query);
+
+          if (!matchText) return false;
+
+          // Filtro tipo azione
+          const act = (l.action || '').toLowerCase();
+          if (typeVal === 'login' && !act.includes('login') && !act.includes('auth')) return false;
+          if (typeVal === 'sub' && !act.includes('sub') && !act.includes('sostituz') && !act.includes('assign')) return false;
+          if (typeVal === 'absence' && !act.includes('abs') && !act.includes('assenz') && !act.includes('trip') && !act.includes('uscita')) return false;
+          if (typeVal === 'system' && (act.includes('login') || act.includes('sub') || act.includes('abs'))) return false;
+
+          // Filtro data
+          if (dateVal !== 'all' && l.timestamp) {
+            const logDate = new Date(l.timestamp);
+            const diffDays = (now - logDate) / (1000 * 60 * 60 * 24);
+            if (dateVal === 'today' && logDate.toDateString() !== now.toDateString()) return false;
+            if (dateVal === '7days' && diffDays > 7) return false;
+            if (dateVal === '30days' && diffDays > 30) return false;
+          }
+
+          return true;
+        });
+
+        countBadge.textContent = `${filtered.length} di ${logs.length} eventi`;
+
+        if (!filtered.length) {
+          tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted); font-style:italic;">Nessun log corrisponde ai criteri di ricerca</td></tr>`;
+          return;
+        }
+
+        tableBody.innerHTML = filtered.map(l => {
+          const act = (l.action || '').toUpperCase();
+          let badgeClass = 'badge-neutral';
+          if (act.includes('LOGIN') || act.includes('AUTH')) badgeClass = 'badge-info';
+          else if (act.includes('DELETE') || act.includes('REMOVE') || act.includes('REJECT')) badgeClass = 'badge-danger';
+          else if (act.includes('ADD') || act.includes('CREATE') || act.includes('ASSIGN')) badgeClass = 'badge-success';
+          else if (act.includes('UPDATE') || act.includes('EDIT')) badgeClass = 'badge-warning';
+
+          return `
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px 14px; font-size:11px; white-space:nowrap; color:var(--text-secondary);">${new Date(l.timestamp).toLocaleString('it-IT')}</td>
+              <td style="font-weight:700; color:var(--text-primary);">${escHtml(l.username)}</td>
+              <td><span class="badge ${badgeClass}" style="font-size:10px; font-weight:600;">${escHtml(l.action)}</span></td>
+              <td style="color:var(--text-secondary); line-height:1.4;">${escHtml(l.detail)}</td>
+            </tr>
+          `;
+        }).join('');
+      };
+
+      searchInput.addEventListener('input', renderRows);
+      filterType.addEventListener('change', renderRows);
+      filterDate.addEventListener('change', renderRows);
+
+      renderRows();
+
+    } catch(e) { APP.toast(e.message, 'error'); }
   }
 
   // ── ANNI SCOLASTICI ──
@@ -353,5 +428,5 @@ var SettingsView = (() => {
     };
   }
 
-  return { render, setTab, activateYear, deleteYear, deleteClass, openUserModal, deleteUser, openClearHistoryModal };
+  return { render, setTab, activateYear, deleteYear, deleteClass, openUserModal, deleteUser };
 })();
