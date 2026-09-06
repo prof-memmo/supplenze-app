@@ -215,6 +215,19 @@
 
   <!-- MAIN AREA -->
   <main class="main-content">
+    <!-- SANDBOX TOP BANNER -->
+    <div id="sandbox-banner" class="sandbox-banner" style="display:none;">
+      <div class="sandbox-banner-content">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">🧪</span>
+          <span><strong>MODALITÀ SIMULAZIONE ATTIVA (Sessione Locale)</strong> <span class="hide-mobile" style="opacity:0.9; font-size:12px;">— Dati di prova isolati. I dati reali e gli altri PC non vengono toccati.</span></span>
+        </div>
+        <button class="btn btn-sm" id="btn-exit-sandbox" style="font-size:12px; font-weight:700; padding:4px 12px; border-radius:6px; background:#1e293b; color:white; border:none; cursor:pointer;">
+          ✕ Esci dalla Simulazione
+        </button>
+      </div>
+    </div>
+
     <header class="top-bar">
       <button class="mobile-toggle" id="mobile-toggle-btn">☰</button>
       <div class="topbar-date" id="topbar-date"></div>
@@ -243,23 +256,23 @@
 <div class="toast-container" id="toast-container"></div>
 
 <!-- SCRIPTS -->
-<script src="js/utils.js?v=2.2"></script>
-<script src="js/engine.js?v=2.2"></script>
-<script src="js/api.js?v=2.2"></script>
-<script src="js/operational_registry.js?v=2.2"></script>
-<script src="js/admin_notifications.js?v=2.2"></script>
-<script src="js/seed_complex_data.js?v=2.2"></script>
-<script src="js/teachers.js?v=2.2"></script>
-<script src="js/schedule.js?v=2.2"></script>
-<script src="js/absences.js?v=2.2"></script>
-<script src="js/substitutions.js?v=2.2"></script>
-<script src="js/daily_overview.js?v=2.2"></script>
-<script src="js/teacher_self_service.js?v=2.2"></script>
-<script src="js/reports.js?v=2.2"></script>
-<script src="js/settings.js?v=2.2"></script>
-<script src="js/import_export.js?v=2.2"></script>
-<script src="js/events.js?v=2.2"></script>
-<script src="js/app.js?v=2.2"></script>
+<script src="js/utils.js?v=2.3"></script>
+<script src="js/engine.js?v=2.3"></script>
+<script src="js/api.js?v=2.3"></script>
+<script src="js/operational_registry.js?v=2.3"></script>
+<script src="js/admin_notifications.js?v=2.3"></script>
+<script src="js/seed_complex_data.js?v=2.3"></script>
+<script src="js/teachers.js?v=2.3"></script>
+<script src="js/schedule.js?v=2.3"></script>
+<script src="js/absences.js?v=2.3"></script>
+<script src="js/substitutions.js?v=2.3"></script>
+<script src="js/daily_overview.js?v=2.3"></script>
+<script src="js/teacher_self_service.js?v=2.3"></script>
+<script src="js/reports.js?v=2.3"></script>
+<script src="js/settings.js?v=2.3"></script>
+<script src="js/import_export.js?v=2.3"></script>
+<script src="js/events.js?v=2.3"></script>
+<script src="js/app.js?v=2.3"></script>
 <script>
 // Google Sign-In fallback trigger
 function triggerGoogleSignIn() {

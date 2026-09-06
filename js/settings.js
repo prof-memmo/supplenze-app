@@ -420,27 +420,28 @@ var SettingsView = (() => {
 
         <div style="padding:16px 0; font-size:13px; line-height:1.6; color:var(--text-secondary);">
           <p style="margin-bottom:12px;">
-            La <strong>Modalità Test</strong> ti consente di provare tutte le funzioni del gestionale con uno scenario scolastico completo già pronto:
+            La <strong>Modalità Simulazione (Sandbox)</strong> ti consente di provare tutte le funzioni del gestionale in totale sicurezza con uno scenario dimostrativo completo:
           </p>
           <ul style="padding-left:20px; margin-bottom:16px;">
+            <li><strong>Isolamento Locale Protetto</strong>: La simulazione è attiva solo su questo computer/browser. <strong>I dati reali e gli altri PC non vengono toccati né interrotti</strong>.</li>
             <li><strong>Gestione Sostituzioni completa</strong>: Assegna docenti in compresenza, a disposizione, eccedenti e oltre 5 ore.</li>
             <li><strong>Assenze &amp; Permessi</strong>: Registra nuove assenze rapide, permessi orari o uscite didattiche.</li>
             <li><strong>Flussi Docenti &amp; Report</strong>: Testa l'accettazione, il rifiuto con motivazione e i report annuali per il Dirigente.</li>
           </ul>
 
           <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; padding:12px 16px; margin-bottom:20px;">
-            <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">Stato attuale:</div>
-            <div>${simActive ? 'Lo scenario demo (15 docenti, 15 classi, orario settimanale e assenze) è <strong>attualmente caricato</strong>.' : 'L\'anno scolastico è attualmente in <strong>modalità standard</strong> (dati reali o vuoto).'}</div>
+            <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">Stato attuale sessione:</div>
+            <div>${simActive ? 'La <strong>Modalità Simulazione è ATTIVA</strong> su questo browser. Stai operando sui dati di prova temporanei.' : 'La <strong>Modalità Simulazione è DISATTIVA</strong>. Stai operando sui dati reali di produzione.'}</div>
           </div>
 
           <div style="display:flex; gap:12px; align-items:center;">
             ${!simActive ? `
               <button class="btn btn-primary btn-lg" id="btn-activate-testmode" style="font-size:13px;">
-                <span>⚡</span> Attiva Modalità Test (Carica Dati Demo)
+                <span>⚡</span> Entra in Modalità Simulazione
               </button>
             ` : `
               <button class="btn btn-danger btn-lg" id="btn-deactivate-testmode" style="font-size:13px;">
-                <span>🗑️</span> Disattiva Modalità Test (Rimuovi Dati Demo)
+                <span>✕</span> Esci dalla Modalità Simulazione
               </button>
             `}
           </div>

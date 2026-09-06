@@ -518,6 +518,12 @@ const APP = (() => {
       const v = getHash();
       if (v && v !== state.currentView) navigate(v);
     });
+
+    // Exit sandbox banner button
+    document.getElementById('btn-exit-sandbox')?.addEventListener('click', () => {
+      toggleSimulationMode(false);
+    });
+    updateSandboxBanner();
   }
 
   async function loadYears() {
@@ -569,7 +575,14 @@ const APP = (() => {
   }
 
   function isSimulationMode() {
-    return localStorage.getItem('sg_sim_mode') === 'true';
+    return typeof Engine !== 'undefined' && Engine.isSandboxActive ? Engine.isSandboxActive() : false;
+  }
+
+  function updateSandboxBanner() {
+    const banner = document.getElementById('sandbox-banner');
+    if (banner) {
+      banner.style.display = (isAdmin() && isSimulationMode()) ? 'block' : 'none';
+    }
   }
 
   function renderSimControl() {
@@ -578,6 +591,7 @@ const APP = (() => {
 
     if (!isAdmin() || !isSimulationMode()) {
       wrap.innerHTML = '';
+      updateSandboxBanner();
       return;
     }
 
@@ -587,6 +601,7 @@ const APP = (() => {
         <span>🧪</span> Modalità Test Attiva
       </div>
     `;
+    updateSandboxBanner();
   }
 
   async function toggleSimulationMode(enable) {
@@ -596,21 +611,20 @@ const APP = (() => {
     }
 
     if (enable) {
-      localStorage.setItem('sg_sim_mode', 'true');
-      toast('🧪 Caricamento dati di test in corso...', 'info');
-      const res = await SeedData.run(state.yearId);
-      if (res.testDate) {
+      const res = Engine.startSandbox(state.yearId);
+      if (res && res.testDate) {
         localStorage.setItem('registry_preselected_date', res.testDate);
       }
-      toast('✅ Modalità Test attivata: 15 docenti, classi e orari caricati.', 'success');
+      toast('🧪 Modalità Simulazione attivata (Sessione locale protetta).', 'success');
     } else {
-      localStorage.removeItem('sg_sim_mode');
-      toast('Rimozione dati di test...', 'info');
-      await SeedData.clear(state.yearId);
-      toast('Modalità Test disattivata e dati di prova rimossi.', 'info');
+      Engine.stopSandbox();
+      localStorage.removeItem('registry_preselected_date');
+      toast('Modalità Simulazione disattivata. Ripristinati i dati reali.', 'info');
     }
 
     renderSimControl();
+    updateSandboxBanner();
+    await loadYears();
     navigate('operational_registry');
   }
 
