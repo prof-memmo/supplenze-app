@@ -4,7 +4,13 @@
  * Structure: Fixed 5 rows per hour (more if needed).
  */
 var OperationalRegistryView = (() => {
-  let _currentDate = todayISO();
+  function getDefaultDate() {
+    const d = new Date();
+    if (d.getDay() === 0) d.setDate(d.getDate() + 1); // Domenica -> Lunedì
+    return d.toISOString().slice(0, 10);
+  }
+
+  let _currentDate = getDefaultDate();
   let _isWeekly = false, _state = null;
   let activeLT = [];
 
@@ -171,7 +177,16 @@ var OperationalRegistryView = (() => {
           </div>`;
       }
 
+      let isSunday = new Date(_currentDate + 'T12:00:00').getDay() === 0;
+
       let html = `
+        ${isSunday ? `
+        <div class="alert" style="background:var(--accent-light); border:1px solid var(--accent); border-radius:10px; padding:12px 16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div style="font-size:13px; color:var(--text-primary);">
+            📅 <strong>Domenica (${fmtDate(_currentDate)})</strong> — Giorno festivo: nessuna lezione prevista da orario scolastico.
+          </div>
+          <button class="btn btn-sm btn-primary" id="reg-goto-monday-btn" style="font-size:12px; padding:6px 12px; border-radius:6px; font-weight:600;">➡️ Passa a Lunedì</button>
+        </div>` : ''}
         <div id="print-export-container">
           <div class="print-only-heading" style="display:none; text-align:center; font-size: 16px; margin-bottom: 16px; color:#000;">
              <strong style="font-size:20px;">Registro Operativo Sostituzioni</strong><br/>
@@ -261,6 +276,16 @@ var OperationalRegistryView = (() => {
       </div>
       `;
       target.innerHTML = html;
+
+      target.querySelector('#reg-goto-monday-btn')?.addEventListener('click', () => {
+        const d = new Date(_currentDate + 'T12:00:00');
+        d.setDate(d.getDate() + 1);
+        _currentDate = d.toISOString().slice(0, 10);
+        const selector = container.querySelector('#reg-date-selector');
+        if (selector) selector.value = _currentDate;
+        loadAndRender(container, state, isReadOnly);
+      });
+
       // Init TomSelect on all registry cell selects (must be after DOM injection)
       initRegistryCells(target, state);
 

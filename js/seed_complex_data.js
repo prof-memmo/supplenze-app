@@ -82,14 +82,18 @@ const SeedData = (() => {
       });
     });
 
-    // 5. Aggiunta Assenze per la DATA ODIERNA reale
-    const today = new Date().toISOString().slice(0, 10);
+    // 5. Aggiunta Assenze per un giorno feriale attivo (Lunedì se weekend)
+    const targetD = new Date();
+    if (targetD.getDay() === 0) targetD.setDate(targetD.getDate() + 1); // Domenica -> Lunedì
+    else if (targetD.getDay() === 6) targetD.setDate(targetD.getDate() + 2); // Sabato -> Lunedì
+    const testDate = targetD.toISOString().slice(0, 10);
+
     [teachers[0], teachers[1]].forEach((t, idx) => {
        db.absences.push({
          id: Date.now() + idx, 
          teacher_id: t.id, 
          teacher_name: t.name,
-         date: today, 
+         date: testDate, 
          type: 'assenza_giornaliera', 
          status: 'approved', 
          school_year_id: targetYearId
@@ -100,7 +104,8 @@ const SeedData = (() => {
     console.log('[SEED] Completato. Classi:', db.classes.filter(c => c.school_year_id === targetYearId).length);
     return { 
       ok: true, 
-      message: `Dati caricati con successo per l'anno ${targetYearId}. Sguardo al Registro in data ${today} per vedere i docenti assenti.` 
+      testDate,
+      message: `Dati di simulazione caricati per l'anno selezionato. Registro impostato sul giorno ${fmtDate(testDate)}.` 
     };
   }
 

@@ -543,9 +543,7 @@ const APP = (() => {
           if (isAdmin()) setTimeout(() => showOnboardingPrompt(), 500);
         } else {
           const options = state.years.map(y => {
-            const isTest = (y.name?.includes('2025/26') || y.name?.includes('25/26'));
-            const label = isTest && !y.name?.includes('Test') ? `${y.name} (🧪 Test)` : y.name;
-            return `<option value="${y.id}" ${state.yearId === String(y.id) ? 'selected' : ''}>${label}</option>`;
+            return `<option value="${y.id}" ${state.yearId === String(y.id) ? 'selected' : ''}>${escHtml(y.name)}</option>`;
           });
           if (!state.yearId) {
             options.unshift('<option value="" selected disabled>— Seleziona Anno —</option>');
@@ -563,10 +561,93 @@ const APP = (() => {
           sel.classList.toggle('pulse-attention', !state.yearId);
         }
       }
+      renderSimControl();
     } catch(e) { 
       console.error('Errore caricamento anni:', e); 
       if (sel) sel.innerHTML = '<option value="">Errore dati</option>';
     }
+  }
+
+  function isSimulationMode() {
+    return localStorage.getItem('sg_sim_mode') === 'true';
+  }
+
+  function renderSimControl() {
+    const wrap = document.getElementById('sidebar-sim-wrapper');
+    if (!wrap) return;
+
+    if (!isAdmin()) {
+      wrap.innerHTML = '';
+      return;
+    }
+
+    const simActive = isSimulationMode();
+
+    if (!simActive) {
+      wrap.innerHTML = `
+        <div style="background:var(--bg-secondary); border:1px dashed var(--border); border-radius:10px; padding:8px 10px; font-size:12px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+          <div style="display:flex; align-items:center; gap:6px; color:var(--text-secondary); font-weight:600;">
+            <span style="font-size:14px">🧪</span>
+            <span>Simulazione</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-activate-sim" style="font-size:11px; padding:2px 8px; height:26px; border-radius:6px; font-weight:600;">Attiva</button>
+        </div>
+      `;
+      wrap.querySelector('#btn-activate-sim')?.addEventListener('click', () => toggleSimulationMode(true));
+    } else {
+      wrap.innerHTML = `
+        <div style="background:rgba(245, 158, 11, 0.08); border:1px solid rgba(245, 158, 11, 0.35); border-radius:10px; padding:8px 10px; font-size:12px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+            <span style="font-weight:700; color:#d97706; display:flex; align-items:center; gap:4px; font-size:12px;">
+              <span>🧪</span> Test Attivo
+            </span>
+            <button class="btn btn-ghost btn-sm" id="btn-deactivate-sim" style="font-size:10px; padding:2px 6px; height:20px; color:var(--text-muted); cursor:pointer;" title="Torna alla modalità normale">Disattiva</button>
+          </div>
+          <div style="display:flex; gap:4px;">
+            <button class="btn btn-warning btn-sm" id="btn-load-seed-demo" style="width:100%; font-size:11px; padding:4px 6px; height:26px; justify-content:center; background:#d97706; color:white; border:none; font-weight:600;">
+              ⚡ Popola Dati Demo
+            </button>
+          </div>
+        </div>
+      `;
+      wrap.querySelector('#btn-deactivate-sim')?.addEventListener('click', () => toggleSimulationMode(false));
+      wrap.querySelector('#btn-load-seed-demo')?.addEventListener('click', async () => {
+        if (!state.yearId) {
+          toast('Seleziona prima un anno scolastico', 'warning');
+          return;
+        }
+        if (await confirm('Vuoi popolare lo scenario di simulazione (15 docenti, classi, orari e assenze) per l\'anno selezionato?')) {
+          const res = await SeedData.run(state.yearId);
+          toast(res.message, 'success');
+          if (res.testDate) {
+            localStorage.setItem('registry_preselected_date', res.testDate);
+          }
+          navigate('operational_registry');
+        }
+      });
+    }
+  }
+
+  async function toggleSimulationMode(enable) {
+    if (enable) {
+      localStorage.setItem('sg_sim_mode', 'true');
+      toast('🧪 Modalità Simulazione attivata.', 'info');
+      if (state.yearId) {
+        const classes = await API.get(`/settings/classes?year_id=${state.yearId}`);
+        if (!classes || !classes.length) {
+          const res = await SeedData.run(state.yearId);
+          toast(res.message, 'success');
+          if (res.testDate) {
+            localStorage.setItem('registry_preselected_date', res.testDate);
+          }
+        }
+      }
+    } else {
+      localStorage.removeItem('sg_sim_mode');
+      toast('Modalità Simulazione disattivata.', 'info');
+    }
+    renderSimControl();
+    navigate(state.currentView);
   }
 
   function showOnboardingPrompt() {
@@ -627,6 +708,7 @@ const APP = (() => {
     showIf('.nav-item[data-view="import_export"]', isAdminOrMaster);
     showIf('#nav-login-preview', isMaster);
     showIf('#nav-instr-admin', isAdminOrMaster);
+    renderSimControl();
   }
 
   function logout() {
@@ -641,6 +723,7 @@ const APP = (() => {
     init: () => checkAuth(),
     navigate, toast, modal, confirm, logout, loadYears, showApp, showLogin,
     showPrivacyModal, showTermsModal, showTeacherManual, showAdminManual,
+    isSimulationMode, toggleSimulationMode, renderSimControl,
     getState: () => state,
     isAdmin, isAdminMaster, isTeacher
   };

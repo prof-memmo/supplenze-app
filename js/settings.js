@@ -201,11 +201,9 @@ var SettingsView = (() => {
           <div class="table-wrapper"><table>
             <thead><tr><th>Anno</th><th>Inizio</th><th>Fine</th><th>Stato</th><th>Azioni</th></tr></thead>
             <tbody>${years.map(y=>{
-              const isTest = (y.name?.includes('2025/26') || y.name?.includes('25/26'));
-              const label = isTest && !y.name?.includes('Test') ? `${escHtml(y.name)} <span class="badge badge-warning" style="font-size:10px; margin-left:6px; background:#fef3c7; color:#92400e;">🧪 Dati Test</span>` : `<strong>${escHtml(y.name)}</strong>`;
               return `
               <tr>
-                <td>${label}</td>
+                <td><strong>${escHtml(y.name)}</strong></td>
                 <td>${fmtDate(y.start_date)}</td><td>${fmtDate(y.end_date)}</td>
                 <td>${y.is_active?'<span class="badge badge-success">✓ Attivo</span>':'<span class="badge badge-neutral">Inattivo</span>'}</td>
                 <td style="display:flex;gap:4px">
@@ -218,7 +216,7 @@ var SettingsView = (() => {
         </div>`;
       el.querySelector('#add-year-btn').onclick = openYearModal;
       el.querySelector('#seed-test-btn')?.addEventListener('click', async () => {
-        if (await APP.confirm('Caricare i 15 docenti, classi e orari di test per il 2025/26 (Dati Test)?')) {
+        if (await APP.confirm('Caricare lo scenario di simulazione (15 docenti, classi e orari) per l\'anno selezionato?')) {
           const res = await SeedData.run(yearId);
           APP.toast(res.message, 'success');
           loadTab();
