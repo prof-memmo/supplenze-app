@@ -60,3 +60,25 @@ Prima di considerare conclusa qualsiasi modifica e prima di effettuare il push s
 ### ART. 7 - GESTIONE BRANCH E PUSH GIT
 - Tutti i test, le verifiche e le nuove implementazioni DEVONO essere committati e spinti esclusivamente sul branch **preview** (git push origin preview).
 - E' fatto divieto assoluto di eseguire il push diretto sul branch main a meno di esplicito comando di rilascio in produzione da parte dell'utente.
+- **ECCEZIONE PER SUPPLENZE-APP**: Poiché questo applicativo non è gestito dal cruscotto rilasci dell'Hub, i rilasci di produzione definitivi avvengono con commit e push diretto sul branch **main** (`git push origin main`).
+
+
+---
+
+### ART. 8 - PROTOCOLLO DI COLLAUDO FUNZIONALE E2E E ZERO DEAD-CLICKS (END-TO-END INTERACTION GUARD)
+1. **Divieto Assoluto di Elementi Interattivi 'Morti' (Zero Dead Clicks)**:
+   - E' severamente vietato rilasciare pagine con tag `<a>`, `<button>`, selettori o voci di menu che abbiano `href="#"`, `href="javascript:void(0)"` o listener privi di handler attivo e funzionante.
+   - Ogni elemento interattivo visibile all'utente deve compiere l'azione attesa (apertura modale, transizione di vista, avvio sessione, download, redirect).
+2. **Conformità del Footer Globale e Modali Legali**:
+   - Tutte le pagine HTML e viste dell'ecosistema devono includere obbligatoriamente nel footer:
+     1. Il badge Patamu protetto a 52px e il testo di licenza.
+     2. I link a **Privacy Policy** e **Termini e Condizioni** perfettamente collegati a `openSharedModal('privacy')` e `openSharedModal('termini')`.
+     3. L'inclusione dello script condiviso `https://gestionesiti.profmemmo.it/shared/legal-modal.js`.
+3. **Collaudo Reale con Browser Subagent (Test dei Flussi Utente)**:
+   - Prima di ogni commit su `preview`, l'agente DEVE eseguire un collaudo reale con il browser subagent verificando:
+     - **Click sui modali legali**: conferma che l'overlay `#pmSharedOverlay` si apra, mostri il titolo corretto e sia leggibile.
+     - **Click sul Login/SSO**: verifica che il reindirizzamento al portale Hub avvenga con il parametro `?redirect=...` corretto e preservi la sessione.
+     - **Zero Errori in Console Browser**: ispezione della console (0 eccezioni JS `Uncaught TypeError`, 0 risorse `404`).
+     - **Cattura Screenshot di Prova**: documentazione visiva delle viste e dei modali collaudati.
+4. **Report di Collaudo Obbligatorio**:
+   - La risposta di consegna dell'agente deve includere la lista degli elementi fisicamente cliccati e collaudati nel browser reale.
