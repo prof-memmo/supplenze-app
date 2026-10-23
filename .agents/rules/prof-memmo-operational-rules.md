@@ -1,7 +1,25 @@
 # REGOLE OPERATIVE DI SICUREZZA PER L'ECOSISTEMA PROF. MEMMO
-# Versione 2.2 - Consolidata con Protocollo di Collaudo a 3 Livelli (Rete, Console JS & E2E) (Ottobre 2026)
+# Versione 2.3 - Consolidata e Blindata (19 Ottobre 2026)
 
 Tutti gli agenti AI e i programmatori che operano sui repository dell'Ecosistema Prof. Memmo DEVONO rispettare rigorosamente le seguenti regole inderogabili.
+
+---
+
+### AMBITO E PERIMETRO UFFICIALE DELL'ECOSISTEMA (I 10 REPOSITORY CANONICI)
+L'Ecosistema didattico e gestionale di Prof. Memmo è costituito esclusivamente dai seguenti 10 progetti ufficiali:
+1. **prof-memmo-gestione-siti** (Hub Admin di Gestione e Portale Operativo)
+2. **games** (Portale Vetrina, Catalogo Giochi e Accesso Unificato)
+3. **fantaletteratura** (FantaLetteratura)
+4. **la-rotta-degli-eroi** (La Rotta degli Eroi)
+5. **la-corte-della-commedia** (La Corte della Commedia)
+6. **palestra-di-riflessione** (La Palestra di Riflessione)
+7. **ops-storia** [ops-web] (Ops! Operazione Storia)
+8. **l-oratore** (L'Oratore)
+9. **historygram** (HistoryGram)
+10. **la-ruota-geografica** (La Ruota Geografica)
+
+> [!IMPORTANT]
+> Applicazioni organizzative separate (es. **Supplenze App**) sono strumenti autonomi a destinazione d'uso differente, non fanno parte dell'ecosistema giochi e materiali didattici e sono tassativamente escluse dagli audit globali, dalle metriche didattiche e dalle pipeline di rilascio dell'ecosistema.
 
 ---
 
@@ -57,27 +75,125 @@ Prima di considerare conclusa qualsiasi modifica e prima di effettuare il push s
 
 ---
 
-### ART. 7 - GESTIONE BRANCH E PUSH GIT
-- Tutti i test, le verifiche e le nuove implementazioni DEVONO essere committati e spinti esclusivamente sul branch **preview** (git push origin preview).
-- E' fatto divieto assoluto di eseguire il push diretto sul branch main a meno di esplicito comando di rilascio in produzione da parte dell'utente.
+### ART. 7 - GESTIONE BRANCH, WORKFLOW DI RILASCIO E PREVIEW COME 'RELEASE CANDIDATE'
+1. **Branch Preview come Release Candidate Ufficiale**:
+   - Tutti i test, le verifiche e le implementazioni dell'assistente DEVONO essere committati e spinti **esclusivamente sul branch `preview`** (`git push origin preview`).
+   - La versione su `preview` NON è una bozza transitoria, ma la **Release Candidate definitiva e pronta per la produzione**: al termine di ogni blocco, `preview` deve essere funzionante al 100% per permettere all'utente di rilasciarla immediatamente su `main` tramite l'Hub Admin.
+   - E' fatto divieto assoluto di eseguire il push diretto sul branch `main` dall'assistente: la promozione di `preview` a `main` è riservata unicamente all'azione dell'utente tramite il pulsante "Pubblica su Live (main)" nell'Hub Admin.
+2. **Pre-Flight Check e Sincronizzazione da `origin/main`**:
+   - Prima di iniziare a lavorare su `preview` per qualsiasi progetto, l'agente DEVE eseguire un controllo preventivo di `origin/main`. Se l'utente ha effettuato rilasci automatici da Hub Admin su `main`, l'agente deve eseguire `git fetch` e `git merge origin/main` in `preview` per garantire l'assoluta continuità della cronologia Git.
 
 ---
 
-### ART. 8 - PROTOCOLLO DI COLLAUDO OBBLIGATORIO A 3 LIVELLI DELL'ECOSISTEMA (RETE, RUNTIME CONSOLE & FUNCTIONAL E2E)
-Prima di considerare conclusa qualsiasi sessione di lavoro o rilascio, è fatto obbligo inderogabile di eseguire la scansione automatica di integrità su TUTTI i siti e sottodomini dell'Ecosistema Prof. Memmo secondo il protocollo di collaudo a 3 livelli, senza richiedere collaudi manuali preliminari all'utente:
+### ART. 8 - PROTOCOLLO DI COLLAUDO OBBLIGATORIO A 3 LIVELLI DELL'ECOSISTEMA (TARGET CANALE PREVIEW)
+Prima di considerare conclusa qualsiasi sessione di lavoro o rilascio, è fatto obbligo inderogabile di eseguire la scansione automatica di integrità sui **10 ambienti `/preview/` dell'Ecosistema Prof. Memmo** secondo il protocollo a 3 livelli:
 
-1. **LIVELLO 1: AUDIT DI RETE & ASSET (ZERO-404 / 500)**:
+1. **LIVELLO 1: AUDIT DI RETE & ASSET SUL CANALE PREVIEW (ZERO-404 / 500)**:
+   - **Target Obbligatorio Preview**: La scansione di rete automatica (`tools/audit_ecosistema.py`) deve validare primariamente gli ambienti `https://prof-memmo.github.io/<progetto>/preview/` dei 10 siti dell'ecosistema (con opzione `--live` per verifiche post-rilascio).
    - **Zero 404 / 500 / 503**: Ogni singolo foglio di stile CSS, script JS, font web, immagine, logo, video e manifest collegato alle pagine deve rispondere con HTTP 200 OK.
-   - **Coerenza di radice (No 404 da basePath)**: Divieto assoluto di prefissi di sottocartella su progetti ospitati su domini o sottodomini autonomi (es. Next.js `basePath: ''` per domini root).
-   - **Encoding rigoroso degli URI**: Nessun percorso di immagine o video può contenere spazi grezzi o apici conflittuali negli attributi HTML (devono essere codificati con `%20` o normalizzati a livello di filesystem).
-   - **Esecuzione Automatica Obbligatoria**: L'agente DEVE eseguire lo script `tools/audit_ecosistema.py` (o comando programmatico equivalente su tutti i 9 siti) e allegare l'esito 100% verde nel resoconto finale.
+   - **Coerenza di radice e URL Encoding**: Nessun percorso di immagine o video può contenere spazi grezzi o apici conflittuali negli attributi HTML (devono essere codificati con `%20` o normalizzati a livello di filesystem).
 
 2. **LIVELLO 2: AUDIT BROWSER REALE & RUNTIME CONSOLE (ZERO-ERRORI JS RUNTIME)**:
-   - **Rendering e Booting Completo**: Apertura automatizzata delle pagine tramite motore browser reale (Browser Subagent / Headless Browser).
-   - **Ispezione Console Obbligatoria**: Nessuna eccezione JavaScript non gestita ammessa in console (`console.error`, `Uncaught TypeError`, `app-compat/no-app`, ecc.).
+   - **Rendering e Booting Completo**: Apertura automatizzata delle pagine preview tramite motore browser reale (Playwright / Headless Browser).
+   - **Ispezione Console Obbligatoria**: Nessuna eccezione JavaScript non gestita ammessa in console (`console.error`, `Uncaught TypeError`, ecc.).
    - **Certificazione Firebase/Auth**: Monitoraggio del completamento del bootstrap dei servizi cloud (es. emissione evento `firebaseHubReady` o log di successo `🔥 Firebase Hub Centrale Unico inizializzato`).
 
-3. **LIVELLO 3: TEST FUNZIONALE E2E (SIMULAZIONE INTERAZIONI & CLIC UTENTE)**:
-   - **Simulazione Clic Reale**: Il browser automatizzato deve simulare i clic e le interazioni chiave dell'utente (es. pulsante `#btn-google-login`, navigazione tra sezioni, apertura modali).
-   - **Verifica Flusso Auth/OAuth**: Accertamento che il clic apra correttamente il popup o flusso di autenticazione e che il pulsante mostri transizioni di stato coerenti (es. spinner di caricamento e ripristino) senza lanciare alert o bloccare l'interfaccia.
-   - **Garanzia Zero-Test Manuali**: Nessuna modifica può essere dichiarata funzionante all'utente prima che i 3 livelli di collaudo automatico abbiano dato esito pienamente positivo.
+3. **LIVELLO 3: TEST FUNZIONALE E2E E ZERO DEAD-CLICKS (INTERACTION & BUTTON LIFECYCLE GUARD)**:
+   - **Zero Elementi Interattivi 'Morti'**: Divieto assoluto di tag `<a>` o `<button>` con `href="#"`, `href="javascript:void(0)"` o listener privi di handler attivo.
+   - **Simulazione Clic Reale**: Il browser automatizzato deve simulare i clic e le interazioni chiave dell'utente (apertura modali legali Patamu, navigazione tra sezioni, drawer).
+   - **Stati Visivi Obbligatori**: Ogni pulsante deve implementare feedback visivo per `:hover`, `:active`, `:focus-visible` e `disabled` (con disabilitazione immediata anti-doppio submit sui form).
+   - **Modali e Overlay**: Blocco dello scroll del body (`overflow: hidden`), chiusura esplicita ("X"), click su backdrop e tasto `Escape`.
+   - **Footer Condiviso**: Verifica che Privacy Policy e Termini aprano correttamente `#pmSharedOverlay` tramite `https://gestionesiti.profmemmo.it/shared/legal-modal.js`.
+
+---
+
+### ART. 9 - PROTOCOLLO DI COLLAUDO CROMATICO E ACCESSIBILITÀ VISIVA (WCAG CONTRAST GUARD)
+Prima di considerare conclusa qualsiasi modifica stilistica o di layout, l'agente DEVE eseguire un audit cromatico sul browser:
+1. **Soglie Minime di Contrasto (WCAG 2.1 Livello AA)**:
+   - **Testo Standard (< 18pt o < 14pt bold)**: rapporto di contrasto testo/sfondo calcolato >= 4.5:1.
+   - **Testo Grande o Titoli (>= 18pt o >= 14pt bold)**: rapporto di contrasto >= 3.0:1.
+   - **Contorno e Forma dei Componenti Interattivi**: i bordi/sfondi dei pulsanti e campi input devono avere contrasto >= 3.0:1 rispetto allo sfondo della pagina.
+   - **Testo all'interno dei Pulsanti**: il testo interno a un pulsante deve garantire contrasto >= 4.5:1 sia nello stato di riposo che nello stato `:hover`.
+2. **Risoluzione di Trasparenze, Gradienti e Glassmorphism**:
+   - In presenza di sfondi sfumati (`linear-gradient`) o pannelli trasparenti (`backdrop-filter: blur`, `rgba(...)`), il contrasto deve essere calcolato rispetto al colore effettivo di rendering sottostante. Nessun testo deve risultare affogato o scarsamente leggibile.
+3. **Verifica Responsive e Touch Targets (Mobile Guard)**:
+   - Verifica alle risoluzioni mobile (375px e 390px) e tablet (768px):
+     - Assoluta assenza di scroll orizzontale non intenzionale (`overflow-x` parassita).
+     - Area cliccabile minima per pulsanti e icone di tocco pari ad almeno 44x44px (o 48x48px).
+4. **Certificazione Cromatico-Visiva**:
+   - L'agente deve confermare nel messaggio di consegna il superamento dell'audit cromatico e l'assenza di violazioni di contrasto sui componenti modificati.
+
+---
+
+### ART. 10 - PROTOCOLLO DI COLLAUDO FIREBASE, CLOUD FIRESTORE E INTEGRITÀ BACKEND
+Nelle applicazioni che integrano Firebase e Firestore, prima del rilascio su `preview` l'agente deve certificare l'integrità dei flussi dati:
+1. **Zero Errori di Permessi Firestore (Security Rules Guard)**:
+   - Tutte le operazioni di lettura, scrittura, aggiornamento e cancellazione devono essere testate senza produrre eccezioni `FirebaseError: Missing or insufficient permissions`.
+2. **Protezione dello Stato di Autenticazione (Zero-Flicker Guard)**:
+   - L'inizializzazione del listener `onAuthStateChanged` deve gestire correttamente lo stato intermedio di caricamento (skeleton o spinner), senza mai mostrare transitoriamente il form di login a un utente che possiede una sessione valida.
+3. **Validazione Domini Autorizzati (Authorized Domains)**:
+   - Per i test e i flussi di autenticazione negli ambienti `/preview/`, verificare che il dominio di staging sia censito negli Authorized Domains di Firebase Auth per evitare blocchi nei redirect Google/Email Sign-In.
+4. **Integrità Strutturale dei Dati (Schema Preservation)**:
+   - Nessuna scrittura su Firestore può sovrascrivere o azzerare proprietà preesistenti con `undefined`. Ogni mutazione deve preservare i campi standard di audit (`updatedAt`, `uid`, tenant/scuola).
+5. **Integrità Asset di Rete e Policy Audio**:
+   - Verifica di zero errori `404 Not Found` nel tab Network per risorse JSON didattiche, avatar, icone o suoni.
+   - Nelle app dotate di `AudioEngine`, verificare che nessun audio venga avviato prima del primo gesto/click dell'utente, prevenendo eccezioni non gestite `NotAllowedError: play() failed`.
+
+---
+
+### ART. 11 - WORKFLOW SEQUENZIALE A BLOCCHI E APPROVAZIONE ESPLICITA (STEP-BY-STEP CHECKPOINT GUARD)
+Per garantire il pieno controllo su ogni modifica ed evitare derive o regressioni a catena, ogni operazione di sviluppo deve seguire rigorosamente un flusso sequenziale frammentato:
+1. **Scomposizione Obbligatoria in Blocchi Atomici (Atomic Milestones)**:
+   - Qualsiasi task, implementazione o sessione di refactoring DEVE essere preventivamente suddivisa in **blocchi di lavoro singoli, isolati e sequenziali**.
+   - E' fatto divieto assoluto di eseguire modifiche cumulative o di lavorare su più componenti/obiettivi contemporaneamente nello stesso step.
+2. **Report di Collaudo e Anti-Regressione al Termine di Ogni Blocco**:
+   - Al completamento di ciascun blocco, l'agente DEVE arrestare l'esecuzione e presentare all'utente un riepilogo formale contenente:
+     - *Perimetro del blocco*: file toccati ed esatta modifica apportata.
+     - *Esito Audit Tecnico*: bilanciamento CSS (`{}` a saldo zero), validazione JSON, 0 errori in console.
+     - *Verifica Regressioni*: conferma che i blocchi precedenti, i componenti protetti e le viste non modificate siano rimasti intatti e funzionanti.
+     - *Esito Collaudo Visivo / Subagent*: eventuale screenshot e conferma del corretto rendering.
+3. **Punto di Arresto e Attesa dell'OK Esplicito (Checkpoint Stop)**:
+   - Dopo aver emesso il report del blocco, l'agente ha il **DIVIETO ASSOLUTO di procedere al blocco successivo** in autonomia.
+   - L'agente deve terminare il proprio turno e rimanere in attesa dell'esplicito messaggio di convalida dell'utente ("ok", "procedi", "avanti"). Nessuna riga di codice del blocco successivo può essere scritta prima di tale conferma.
+
+---
+
+### ART. 12 - PROTOCOLLO DI AUDIT DI CONFORMITÀ DIDATTICA, UX E LIM ("MANCA QUALCOSA?")
+Ogni volta che l'utente formula domande aperte di verifica come:
+*"Manca qualcosa?"*, *"Ci sono problemi?"*, *"Secondo te va bene?"*, *"Audit conformità"*, o qualsiasi richiesta di revisione generale su un gioco o componente dell'Ecosistema:
+
+1. **Divieto di Fermarsi al Solo Collaudo Tecnico (Anti-False-Positive Guard)**:
+   - L'agente NON DEVE limitarsi a verificare se il codice compila, se i test di rete danno HTTP 200 o se il git working tree è pulito. Per un linter o test di rete, un pulsante orfano o un testo grafico illeggibile risultano "100% OK", ma violano gli standard didattici dell'Ecosistema.
+2. **Audit Obbligatorio sui 4 Pilastri di Conformità UX & LIM**:
+   - **Pilastro 1: Zero-Scroll Viewport**: La vista operativa del gioco deve essere rigorosamente contenuta al 100% all'interno del viewport (desktop/LIM), senza barre di scorrimento verticali parassite.
+   - **Pilastro 2: Eliminazione Ridondanze UI (Zero-Redundancy Guard)**: Nessun pulsante a centro schermo deve duplicare azioni già presenti negli elementi primari di gioco (es. ruote, tabelloni, carte) o nella dock bar inferiore (es. pulsante "Regolamento" duplicato nella welcome o pulsanti "Reset/Free" ridondanti sotto elementi interattivi).
+   - **Pilastro 3: Leggibilità Grafica e Canvas a Distanza LIM (3 Metri)**:
+     - Nei componenti grafici `<canvas>` o SVG, è vietato l'uso di font sottili o non scalabili (es. *Julius Sans One* su testi piccoli). Utilizzare esclusivamente font solidi ad alta leggibilità (`system-ui`, `Inter`, `sans-serif`) con pesi `bold` o `900`.
+     - Rispetto del contrasto WCAG (testo chiaro su spicchi/tessere scure con ombra a 360°, testo scuro su spicchi chiari).
+     - Gestione multiriga automatica per etichette composte da più parole: nessun testo deve toccare, sovrapporsi o finire coperto sotto perni, mozzi centrali o bordi esterni.
+   - **Pilastro 4: Allineamento agli Standard Ecosistema (L'Oratore / HistoryGram Benchmark)**:
+     - Presenza obbligatoria della modale "Riprendi Partita" e gestione salvataggi in LocalStorage.
+     - Visualizzazione delle prove/sfide estratte tramite modale pop-up centrale ad alto contrasto con timer dedicato (non testo inline statico sotto gli elementi).
+     - Proporzioni armoniose dei pulsanti primari (mai bottoni sovradimensionati che rompono la gerarchia visiva).
+3. **Ispezione Visiva Reale Tramite Browser Subagent**:
+   - L'agente DEVE eseguire una scansione reale con il browser subagent catturando le viste chiave (Welcome, Scelta Argomento/Lobby, Tavolo di Gioco) ed emettere un report puntuale con checkbox `[X]` / `[ ]` per ciascuno dei 4 pilastri.
+
+---
+
+### ART. 13 - PROTOCOLLO DI INTEGRITÀ SEMANTICA DEI CONTENUTI, REGOLE DI PUNTEGGIO E CICLO DI TURNO (SEMANTIC & MULTI-TURN GAMEPLAY INTEGRITY GUARD)
+Valido tassativamente per tutte le applicazioni e siti presenti e futuri dell'Ecosistema Prof. Memmo:
+1. **Zero-Template e Zero-Duplicati nei Dataset Didattici (Content Uniqueness Guard)**:
+   - E' fatto divieto assoluto di rilasciare o mantenere dataset JSON/JS con testi template clonati, generici o procedurati con copia-incolla (es. formule burocratiche ripetute, refusi di sintassi, tracce identiche su più slot).
+   - Ogni mazzo, livello didattico o categoria deve possedere contenuti unici, autentici, narrativi e tarati pedagogicamente sul target scolastico reale (A1-A2 Scuola Primaria, B1 Scuola Media, B2-C2 Superiori).
+   - L'indice di unicità semantica dei testi didattici all'interno di ogni file/dataset deve essere >= 95%.
+2. **Coerenza Effetto-Punteggio (Scoring Business Logic Guard)**:
+   - Qualsiasi elemento interattivo a schermo (buzzer penalità, bonus tempo, moltiplicatori di passi, conteggio vocaboli) DEVE produrre un impatto matematico reale, verificabile ed esplicitamente visualizzato nel riepilogo a video. E' severamente vietato avere pulsanti dotati di feedback sonoro/visivo privi di impatto effettivo sulle regole di gioco o sul punteggio.
+3. **Rotazione E2E dei Contenuti nei Turni (Multi-Turn Progression Guard)**:
+   - Nei giochi a squadre o a turni, ogni transizione di turno deve garantire l'estrazione e il rendering visivo di contenuti differenti: due squadre consecutive nello stesso round o in turni contigui non possono mai visualizzare la medesima traccia identica.
+4. **Contratto Universale di Persistenza e Ripresa Sessione (Save & Resume Contract)**:
+   - Tutte le applicazioni a sessione devono salvare lo stato automaticamente a ogni turno (`autoSave`) e devono esporre:
+     1. Un banner o pulsante evidente nella schermata principale per riprendere la sessione interrotta.
+     2. Un'opzione di uscita ordinata *"Salva ed Esci"* accessibile in qualsiasi momento durante la partita.
+5. **Estensione Obbligatoria del Collaudo Automatico (Universal Test Suite Integration)**:
+   - I collaudi automatici dell'ecosistema (Master Suite `collaudo_totale.py` e Preflight Hub `releases-ui.js`) devono obbligatoriamente includere l'Audit Semantico dei dataset e la simulazione multi-turno Playwright per validare il flusso reale su tutti i siti presenti e futuri.
+
